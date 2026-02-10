@@ -73,6 +73,7 @@ const SIGN_IN_SCREEN_OPTIONS = {
 const SIGN_UP_SCREEN_OPTIONS = {
   presentation: 'modal',
   title: '',
+  headerShown: false,
   headerTransparent: true,
   gestureEnabled: false,
 } as const;

@@ -5,14 +5,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Text } from '@/components/ui/text';
+import { Icon } from '@/components/ui/icon';
 import { useSignUp } from '@clerk/clerk-expo';
 import { Link, router } from 'expo-router';
 import * as React from 'react';
-import { Image, type TextInput, View } from 'react-native';
+import { Image, type TextInput, View, Pressable } from 'react-native';
+import { Eye, EyeOff } from 'lucide-react-native';
 export function SignUpForm() {
   const { signUp, isLoaded } = useSignUp();
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [passwordVisible, setPasswordVisible] = React.useState(false);
   const passwordInputRef = React.useRef<TextInput>(null);
   const [error, setError] = React.useState<{ email?: string; password?: string }>({});
 
@@ -86,14 +89,26 @@ export function SignUpForm() {
               <View className="flex-row items-center">
                 <Label htmlFor="password">Password</Label>
               </View>
-              <Input
-                ref={passwordInputRef}
-                id="password"
-                secureTextEntry
-                onChangeText={setPassword}
-                returnKeyType="send"
-                onSubmitEditing={onSubmit}
-              />
+              <View className="relative flex-row items-center">
+                <Input
+                  ref={passwordInputRef}
+                  id="password"
+                  secureTextEntry={!passwordVisible}
+                  onChangeText={setPassword}
+                  returnKeyType="send"
+                  onSubmitEditing={onSubmit}
+                  className="flex-1"
+                />
+                <Pressable
+                  onPress={() => setPasswordVisible(!passwordVisible)}
+                  className="absolute right-3">
+                  <Icon
+                    as={passwordVisible ? EyeOff : Eye}
+                    size={20}
+                    className="text-muted-foreground opacity-75"
+                  />
+                </Pressable>
+              </View>
               {error.password ? (
                 <Text className="text-sm font-medium text-destructive">{error.password}</Text>
               ) : null}
