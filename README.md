@@ -59,5 +59,3 @@ Or scan the QR code with the [Expo Go](https://expo.dev/go) app to test on your 
 - [React Native Reusables](https://reactnativereusables.com)
 
 ---
-
-If this template helps you move faster, consider giving [React Native Reusables](https://github.com/founded-labs/react-native-reusables) a ⭐ on GitHub. It helps a lot!
