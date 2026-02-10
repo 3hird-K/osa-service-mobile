@@ -8,8 +8,7 @@ import { Text } from '@/components/ui/text';
 import { useSignUp } from '@clerk/clerk-expo';
 import { Link, router } from 'expo-router';
 import * as React from 'react';
-import { TextInput, View } from 'react-native';
-
+import { Image, type TextInput, View } from 'react-native';
 export function SignUpForm() {
   const { signUp, isLoaded } = useSignUp();
   const [email, setEmail] = React.useState('');
@@ -50,6 +49,13 @@ export function SignUpForm() {
 
   return (
     <View className="gap-6">
+      <View className="items-center justify-center py-6">
+          <Image
+            source={require('@/assets/images/image.png')}
+            className="h-24 w-24 rounded-full"
+          />
+      </View>
+      
       <Card className="border-border/0 shadow-none sm:border-border sm:shadow-sm sm:shadow-black/5">
         <CardHeader>
           <CardTitle className="text-center text-xl sm:text-left">Create your account</CardTitle>
@@ -102,12 +108,12 @@ export function SignUpForm() {
               Sign in
             </Link>
           </Text>
-          <View className="flex-row items-center">
+          {/* <View className="flex-row items-center">
             <Separator className="flex-1" />
             <Text className="px-4 text-sm text-muted-foreground">or</Text>
             <Separator className="flex-1" />
-          </View>
-          <SocialConnections />
+          </View> */}
+          {/* <SocialConnections /> */}
         </CardContent>
       </Card>
     </View>
