@@ -1,3 +1,5 @@
+ReactNative Reusable + ClerkAuth
+
 This is a [React Native](https://reactnative.dev) project built with [Expo](https://expo.dev), [Clerk](https://go.clerk.com/gjgxNgT), and [React Native Reusables](https://reactnativereusables.com).
 
 ## Getting Started
