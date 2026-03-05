@@ -49,54 +49,52 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <View className="gap-6">
-      <Card className="border-border/0 shadow-none sm:border-border sm:shadow-sm sm:shadow-black/5">
-        <CardHeader>
-          <CardTitle className="text-center text-xl sm:text-left">Reset password</CardTitle>
-          <CardDescription className="text-center sm:text-left">
-            Enter the code sent to your email and set a new password
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="gap-6">
-          <View className="gap-6">
-            <View className="gap-1.5">
-              <View className="flex-row items-center">
-                <Label htmlFor="password">New password</Label>
-              </View>
-              <Input
-                id="password"
-                secureTextEntry
-                onChangeText={setPassword}
-                returnKeyType="next"
-                submitBehavior="submit"
-                onSubmitEditing={onPasswordSubmitEditing}
-              />
-              {error.password ? (
-                <Text className="text-sm font-medium text-destructive">{error.password}</Text>
-              ) : null}
-            </View>
-            <View className="gap-1.5">
-              <Label htmlFor="code">Verification code</Label>
-              <Input
-                id="code"
-                autoCapitalize="none"
-                onChangeText={setCode}
-                returnKeyType="send"
-                keyboardType="numeric"
-                autoComplete="sms-otp"
-                textContentType="oneTimeCode"
-                onSubmitEditing={onSubmit}
-              />
-              {error.code ? (
-                <Text className="text-sm font-medium text-destructive">{error.code}</Text>
-              ) : null}
-            </View>
-            <Button className="w-full" onPress={onSubmit}>
-              <Text>Reset Password</Text>
-            </Button>
-          </View>
-        </CardContent>
-      </Card>
+    <View className="gap-6 w-full">
+      <View className="items-center pb-2">
+        <Text className="text-2xl font-bold font-sans text-foreground">Reset password</Text>
+        <Text className="text-muted-foreground mt-2 font-sans font-medium text-center px-4">Enter the code sent to your email and set a new password</Text>
+      </View>
+      <View className="gap-5 mt-2">
+        <View className="gap-2">
+          <Input
+            id="password"
+            placeholder="New Password"
+            secureTextEntry
+            onChangeText={setPassword}
+            returnKeyType="next"
+            submitBehavior="submit"
+            onSubmitEditing={onPasswordSubmitEditing}
+            className="rounded-2xl border-border px-5 py-4 font-sans text-foreground bg-transparent"
+            placeholderTextColor="hsl(var(--muted-foreground))"
+          />
+          {error.password ? (
+            <Text className="text-sm font-medium text-destructive ml-2">{error.password}</Text>
+          ) : null}
+        </View>
+        <View className="gap-2">
+          <Input
+            id="code"
+            placeholder="Verification code"
+            autoCapitalize="none"
+            onChangeText={setCode}
+            returnKeyType="send"
+            keyboardType="numeric"
+            autoComplete="sms-otp"
+            textContentType="oneTimeCode"
+            onSubmitEditing={onSubmit}
+            className="rounded-2xl border-border px-5 py-4 font-sans text-foreground bg-transparent"
+            placeholderTextColor="hsl(var(--muted-foreground))"
+          />
+          {error.code ? (
+            <Text className="text-sm font-medium text-destructive ml-2">{error.code}</Text>
+          ) : null}
+        </View>
+        <View className="mt-2">
+          <Button className="w-full rounded-2xl py-6 bg-primary" onPress={onSubmit}>
+            <Text className="text-primary-foreground font-semibold font-sans">Reset Password</Text>
+          </Button>
+        </View>
+      </View>
     </View>
   );
 }

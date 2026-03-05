@@ -59,93 +59,75 @@ export function SignInForm() {
   }
 
   return (
-    <View className="gap-6">
-      <View className="items-center justify-center py-6">
-        <Image
-          source={require('@/assets/images/image.png')}
-          className="h-24 w-24 rounded-full"
-        />
+    <View className="gap-6 w-full">
+      <View className="items-center pb-2">
+        <Text className="text-2xl font-bold font-sans text-foreground">Welcome Back</Text>
+        <Text className="text-muted-foreground mt-2 font-sans font-medium">Enter your details below</Text>
       </View>
-      <Card className="border-border/0 shadow-none sm:border-border sm:shadow-sm sm:shadow-black/5">
-        <CardHeader>
-          <CardTitle className="text-center text-xl sm:text-left">Sign in to Osa-Service</CardTitle>
-          <CardDescription className="text-center sm:text-left">
-            Welcome back! Please sign in to continue
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="gap-6">
-          <View className="gap-6">
-            <View className="gap-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                placeholder="m@example.com"
-                keyboardType="email-address"
-                autoComplete="email"
-                autoCapitalize="none"
-                onChangeText={setEmail}
-                onSubmitEditing={onEmailSubmitEditing}
-                returnKeyType="next"
-                submitBehavior="submit"
+      <View className="gap-5 mt-2">
+        <View className="gap-2">
+          <Input
+            id="email"
+            placeholder="Email Address"
+            keyboardType="email-address"
+            autoComplete="email"
+            autoCapitalize="none"
+            onChangeText={setEmail}
+            onSubmitEditing={onEmailSubmitEditing}
+            returnKeyType="next"
+            submitBehavior="submit"
+            className="rounded-2xl border-border px-5 py-4 font-sans text-foreground bg-transparent"
+            placeholderTextColor="hsl(var(--muted-foreground))"
+          />
+          {error.email ? (
+            <Text className="text-sm font-medium text-destructive ml-2">{error.email}</Text>
+          ) : null}
+        </View>
+        <View className="gap-2">
+          <View className="relative flex-row items-center">
+            <Input
+              ref={passwordInputRef}
+              id="password"
+              placeholder="Password"
+              secureTextEntry={!passwordVisible}
+              onChangeText={setPassword}
+              returnKeyType="send"
+              onSubmitEditing={onSubmit}
+              className="flex-1 rounded-2xl border-border px-5 py-4 font-sans text-foreground bg-transparent"
+              placeholderTextColor="hsl(var(--muted-foreground))"
+            />
+            <Pressable
+              onPress={() => setPasswordVisible(!passwordVisible)}
+              className="absolute right-4 h-full justify-center">
+              <Icon
+                as={passwordVisible ? EyeOff : Eye}
+                size={20}
+                className="text-muted-foreground"
               />
-              {error.email ? (
-                <Text className="text-sm font-medium text-destructive">{error.email}</Text>
-              ) : null}
-            </View>
-            <View className="gap-1.5">
-              <View className="flex-row items-center">
-                <Label htmlFor="password">Password</Label>
-                <Link asChild href={`/(auth)/forgot-password?email=${email}`}>
-                  <Button
-                    variant="link"
-                    size="sm"
-                    className="ml-auto h-4 px-1 py-0 web:h-fit sm:h-4">
-                    <Text className="font-normal leading-4">Forgot your password?</Text>
-                  </Button>
-                </Link>
-              </View>
-              <View className="relative flex-row items-center">
-                <Input
-                  ref={passwordInputRef}
-                  id="password"
-                  secureTextEntry={!passwordVisible}
-                  onChangeText={setPassword}
-                  returnKeyType="send"
-                  onSubmitEditing={onSubmit}
-                  className="flex-1"
-                />
-                <Pressable
-                  onPress={() => setPasswordVisible(!passwordVisible)}
-                  className="absolute right-3">
-                  <Icon
-                    as={passwordVisible ? EyeOff : Eye}
-                    size={20}
-                    className="text-muted-foreground opacity-75"
-                  />
-                </Pressable>
-              </View>
-              {error.password ? (
-                <Text className="text-sm font-medium text-destructive">{error.password}</Text>
-              ) : null}
-            </View>
-            <Button className="w-full" onPress={onSubmit}>
-              <Text>Continue</Text>
-            </Button>
+            </Pressable>
           </View>
-          <Text className="text-center text-sm">
-            Don&apos;t have an account?{' '}
-            <Link href="/(auth)/sign-up" className="text-sm underline underline-offset-4">
-              Sign up
-            </Link>
-          </Text>
-          {/* <View className="flex-row items-center">
-            <Separator className="flex-1" />
-            <Text className="px-4 text-sm text-muted-foreground">or</Text>
-            <Separator className="flex-1" />
-          </View> */}
-          {/* <SocialConnections /> */}
-        </CardContent>
-      </Card>
+          {error.password ? (
+            <Text className="text-sm font-medium text-destructive ml-2">{error.password}</Text>
+          ) : null}
+        </View>
+
+        <View className="mt-2">
+          <Button className="w-full rounded-2xl py-6 bg-primary" onPress={onSubmit}>
+            <Text className="text-primary-foreground font-semibold font-sans">Sign in</Text>
+          </Button>
+        </View>
+
+        <View className="items-center mt-2">
+          <Link asChild href={`/(auth)/forgot-password?email=${email}`}>
+            <Button
+              variant="link"
+              size="sm"
+              className="px-1 py-0 web:h-fit">
+              <Text className="font-sans font-medium opacity-80">Forgot your password?</Text>
+            </Button>
+          </Link>
+        </View>
+      </View>
     </View>
   );
 }

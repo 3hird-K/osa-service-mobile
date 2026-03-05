@@ -10,18 +10,35 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'nativewind';
 import * as React from 'react';
+import { useFonts } from 'expo-font';
+import { PlusJakartaSans_400Regular } from '@expo-google-fonts/plus-jakarta-sans';
+import { Lora_400Regular } from '@expo-google-fonts/lora';
+import { IBMPlexMono_400Regular } from '@expo-google-fonts/ibm-plex-mono';
 
 export {
-  // Catch any errors thrown by the Layout component.
   ErrorBoundary,
 } from 'expo-router';
 
 export default function RootLayout() {
-  const { colorScheme } = useColorScheme();
+  const { colorScheme, setColorScheme } = useColorScheme();
+
+  const [fontsLoaded] = useFonts({
+    'Plus Jakarta Sans': PlusJakartaSans_400Regular,
+    'Lora': Lora_400Regular,
+    'IBM Plex Mono': IBMPlexMono_400Regular,
+  });
+
+  React.useEffect(() => {
+    setColorScheme('dark');
+  }, []);
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <ClerkProvider tokenCache={tokenCache}>
-      <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
+      <ThemeProvider value={NAV_THEME[colorScheme ?? 'dark']}>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         <Routes />
         <PortalHost />
@@ -51,16 +68,21 @@ function Routes() {
       <Stack.Protected guard={!isSignedIn}>
         <Stack.Screen name="(auth)/sign-in" options={SIGN_IN_SCREEN_OPTIONS} />
         <Stack.Screen name="(auth)/sign-up" options={SIGN_UP_SCREEN_OPTIONS} />
-        <Stack.Screen name="(auth)/reset-password" options={DEFAULT_AUTH_SCREEN_OPTIONS} />
-        <Stack.Screen name="(auth)/forgot-password" options={DEFAULT_AUTH_SCREEN_OPTIONS} />
+        <Stack.Screen name="(auth)/reset-password" options={SIGN_IN_SCREEN_OPTIONS} />
+        <Stack.Screen name="(auth)/forgot-password" options={SIGN_IN_SCREEN_OPTIONS} />
       </Stack.Protected>
 
       {/* Screens only shown when the user IS signed in */}
       <Stack.Protected guard={isSignedIn}>
-        <Stack.Screen name="index" />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="edit-profile" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="account-details" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="faq" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="help-support" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="qr-code" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="terms-conditions" options={{ headerShown: false, presentation: 'modal' }} />
       </Stack.Protected>
 
-      {/* Screens outside the guards are accessible to everyone (e.g. not found) */}
     </Stack>
   );
 }

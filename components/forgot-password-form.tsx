@@ -42,39 +42,36 @@ export function ForgotPasswordForm() {
   };
 
   return (
-    <View className="gap-6">
-      <Card className="border-border/0 shadow-none sm:border-border sm:shadow-sm sm:shadow-black/5">
-        <CardHeader>
-          <CardTitle className="text-center text-xl sm:text-left">Forgot password?</CardTitle>
-          <CardDescription className="text-center sm:text-left">
-            Enter your email to reset your password
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="gap-6">
-          <View className="gap-6">
-            <View className="gap-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                defaultValue={email}
-                placeholder="m@example.com"
-                keyboardType="email-address"
-                autoComplete="email"
-                autoCapitalize="none"
-                onChangeText={setEmail}
-                onSubmitEditing={onSubmit}
-                returnKeyType="send"
-              />
-              {error.email ? (
-                <Text className="text-sm font-medium text-destructive">{error.email}</Text>
-              ) : null}
-            </View>
-            <Button className="w-full" onPress={onSubmit}>
-              <Text>Reset your password</Text>
-            </Button>
-          </View>
-        </CardContent>
-      </Card>
+    <View className="gap-6 w-full">
+      <View className="items-center pb-2">
+        <Text className="text-2xl font-bold font-sans text-foreground">Forgot password?</Text>
+        <Text className="text-muted-foreground mt-2 font-sans font-medium text-center px-4">Enter your email to reset your password</Text>
+      </View>
+      <View className="gap-5 mt-2">
+        <View className="gap-2">
+          <Input
+            id="email"
+            defaultValue={email}
+            placeholder="Email Address"
+            keyboardType="email-address"
+            autoComplete="email"
+            autoCapitalize="none"
+            onChangeText={setEmail}
+            onSubmitEditing={onSubmit}
+            returnKeyType="send"
+            className="rounded-2xl border-border px-5 py-4 font-sans text-foreground bg-transparent"
+            placeholderTextColor="hsl(var(--muted-foreground))"
+          />
+          {error.email ? (
+            <Text className="text-sm font-medium text-destructive ml-2">{error.email}</Text>
+          ) : null}
+        </View>
+        <View className="mt-2">
+          <Button className="w-full rounded-2xl py-6 bg-primary" onPress={onSubmit}>
+            <Text className="text-primary-foreground font-semibold font-sans">Reset your password</Text>
+          </Button>
+        </View>
+      </View>
     </View>
   );
 }
