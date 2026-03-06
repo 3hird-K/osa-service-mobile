@@ -1,6 +1,6 @@
 ﻿import { ResetPasswordForm } from '@/components/reset-password-form';
 import * as React from 'react';
-import { ScrollView, View, Pressable } from 'react-native';
+import { ScrollView, View, Pressable, Image } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { ChevronLeft } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
@@ -30,9 +30,11 @@ export default function ResetPasswordScreen() {
       >
         {/* Icon */}
         <View className="items-center mb-10">
-          <View className="w-16 h-16 rounded-2xl bg-primary/10 items-center justify-center mb-5">
-            <Text className="text-primary text-3xl">🔒</Text>
-          </View>
+          <Image
+            source={require('@/assets/images/image.png')}
+            className="w-32 h-32 rounded-2xl mb-5"
+            resizeMode="contain"
+          />
         </View>
 
         {/* Form */}

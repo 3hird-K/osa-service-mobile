@@ -1,6 +1,6 @@
 ﻿import { SignUpForm } from '@/components/sign-up-form';
 import * as React from 'react';
-import { ScrollView, View, Pressable } from 'react-native';
+import { ScrollView, View, Pressable, Image } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Link } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,9 +20,11 @@ export default function SignUpScreen() {
       >
         {/* Logo / Brand */}
         <View className="items-center mb-12">
-          <View className="w-16 h-16 rounded-2xl bg-primary items-center justify-center mb-5">
-            <Text className="text-primary-foreground text-2xl font-bold font-sans">O</Text>
-          </View>
+          <Image
+            source={require('@/assets/images/image.png')}
+            className="w-32 h-32 rounded-2xl mb-5"
+            resizeMode="contain"
+          />
           <Text className="text-foreground text-3xl font-bold font-sans tracking-tight">Create account</Text>
           <Text className="text-muted-foreground mt-2 font-sans text-base">Get started with Osa Service</Text>
         </View>
