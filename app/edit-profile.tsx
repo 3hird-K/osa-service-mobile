@@ -1,4 +1,4 @@
-import * as React from 'react';
+﻿import * as React from 'react';
 import { View, ScrollView, Pressable, Image, TextInput } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { ChevronLeft, Camera } from 'lucide-react-native';
@@ -20,7 +20,6 @@ export default function EditProfileScreen() {
             aspect: [1, 1],
             quality: 1,
         });
-
         if (!result.canceled) {
             setImage(result.assets[0].uri);
         }
@@ -28,66 +27,65 @@ export default function EditProfileScreen() {
 
     return (
         <View className="flex-1 bg-muted">
-            <View
-                style={{ paddingTop: insets.top + 16 }}
-                className="px-4 flex-row items-center justify-between"
-            >
-                <Pressable onPress={() => router.back()} className="bg-background w-10 h-10 rounded-full items-center justify-center shadow-sm">
-                    <Icon as={ChevronLeft} className="text-foreground size-5" />
+            {/* Header */}
+            <View style={{ paddingTop: insets.top + 8 }} className="px-4 pb-4 flex-row items-center">
+                <Pressable onPress={() => router.back()} className="w-10 h-10 items-center justify-center rounded-full">
+                    <Icon as={ChevronLeft} className="text-primary size-6" />
                 </Pressable>
-                <Text className="text-foreground font-semibold text-lg flex-1 text-center mr-10 relative left-[-4px] font-sans">Edit profile</Text>
+                <Text className="text-foreground font-semibold text-lg font-sans flex-1 text-center mr-10">Edit Profile</Text>
             </View>
 
-            <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
-                <View className="items-center mt-6 mb-8">
+            <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+                {/* Avatar */}
+                <View className="items-center mt-4 mb-8">
                     <View className="relative">
-                        <Image
-                            source={{ uri: image }}
-                            className="w-24 h-24 rounded-full"
-                        />
-                        <Pressable onPress={pickImage} className="absolute bottom-0 right-0 bg-primary w-8 h-8 rounded-full items-center justify-center border-2 border-muted shadow-sm">
+                        <Image source={{ uri: image }} className="w-24 h-24 rounded-full" />
+                        <Pressable
+                            onPress={pickImage}
+                            className="absolute bottom-0 right-0 bg-primary w-8 h-8 rounded-full items-center justify-center border-2 border-muted"
+                        >
                             <Icon as={Camera} className="text-primary-foreground size-4" />
                         </Pressable>
                     </View>
                 </View>
 
-                <View className="bg-card rounded-3xl p-6 shadow-sm gap-y-6">
-                    <View className="flex-row gap-x-4">
-                        <View className="flex-1 gap-y-2">
-                            <Text className="text-muted-foreground text-sm font-medium">First name</Text>
+                {/* Form */}
+                <View className="gap-y-2 mb-6">
+                    <Text className="text-muted-foreground text-xs font-semibold px-4 font-sans uppercase tracking-wider">Personal Info</Text>
+                    <View className="bg-card rounded-xl border border-border/50 overflow-hidden">
+                        <View className="px-4 py-3 border-b border-border/30">
+                            <Text className="text-xs text-muted-foreground font-sans mb-1">First Name</Text>
                             <TextInput
-                                className="border border-border rounded-2xl px-4 py-3 text-foreground font-medium"
+                                className="text-foreground font-medium text-[15px] font-sans py-0"
                                 defaultValue="Neil"
-                                placeholderTextColor="#9ca3af"
+                                placeholderTextColor="hsl(var(--muted-foreground))"
                             />
                         </View>
-                        <View className="flex-1 gap-y-2">
-                            <Text className="text-muted-foreground text-sm font-medium">Last name</Text>
+                        <View className="px-4 py-3 border-b border-border/30">
+                            <Text className="text-xs text-muted-foreground font-sans mb-1">Last Name</Text>
                             <TextInput
-                                className="border border-border rounded-2xl px-4 py-3 text-foreground font-medium"
+                                className="text-foreground font-medium text-[15px] font-sans py-0"
                                 defaultValue="Dime"
-                                placeholderTextColor="#9ca3af"
+                                placeholderTextColor="hsl(var(--muted-foreground))"
                             />
                         </View>
-                    </View>
-                    <View className="gap-y-2">
-                        <Text className="text-muted-foreground text-sm font-medium">Email</Text>
-                        <TextInput
-                            className="border border-border rounded-2xl px-4 py-3 text-foreground font-medium opacity-50 bg-background"
-                            defaultValue="neildime03@gmail.com"
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                            placeholderTextColor="#9ca3af"
-                            editable={false}
-                            selectTextOnFocus={false}
-                        />
+                        <View className="px-4 py-3">
+                            <Text className="text-xs text-muted-foreground font-sans mb-1">Email</Text>
+                            <TextInput
+                                className="text-foreground/50 font-medium text-[15px] font-sans py-0"
+                                defaultValue="neildime03@gmail.com"
+                                editable={false}
+                                selectTextOnFocus={false}
+                            />
+                        </View>
                     </View>
                 </View>
             </ScrollView>
 
-            <View className="absolute bottom-0 left-0 right-0 px-4" style={{ paddingBottom: insets.bottom + 16 }}>
-                <Pressable className="bg-primary rounded-full py-4 items-center shadow-md">
-                    <Text className="text-primary-foreground font-semibold text-lg">Update</Text>
+            {/* Save Button */}
+            <View className="absolute bottom-0 left-0 right-0 px-4 bg-muted" style={{ paddingBottom: insets.bottom + 16 }}>
+                <Pressable className="bg-primary rounded-xl py-4 items-center">
+                    <Text className="text-primary-foreground font-semibold text-[15px] font-sans">Save Changes</Text>
                 </Pressable>
             </View>
         </View>

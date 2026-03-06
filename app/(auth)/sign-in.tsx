@@ -1,68 +1,47 @@
-import { SignInForm } from '@/components/sign-in-form';
+﻿import { SignInForm } from '@/components/sign-in-form';
 import * as React from 'react';
 import { ScrollView, View, Pressable } from 'react-native';
 import { Text } from '@/components/ui/text';
-import { ChevronLeft } from 'lucide-react-native';
-import { Icon } from '@/components/ui/icon';
-import { useRouter, Link } from 'expo-router';
+import { Link } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function SignInScreen() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
 
   return (
-    <View className="flex-1 bg-primary">
-      {/* Top Section */}
-      <View style={{ paddingTop: insets.top + 16 }} className="px-6 pb-12">
-        <View className="flex-row items-center justify-between">
-          <Pressable onPress={() => router.back()} className="w-10 h-10 items-start justify-center">
-            <Icon as={ChevronLeft} className="text-primary-foreground size-6" />
-          </Pressable>
-          <View className="flex-row items-center">
-            <Text className="text-primary-foreground/80 font-sans mr-2">Don't have an account?</Text>
-            <Link href="/(auth)/sign-up" asChild>
-              <Pressable className="bg-primary-foreground/20 px-3 py-1.5 rounded-full">
-                <Text className="text-primary-foreground font-sans font-semibold text-sm">Get Started</Text>
-              </Pressable>
-            </Link>
+    <View className="flex-1 bg-background">
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingTop: insets.top + 60, paddingBottom: 40 }}
+        contentContainerClassName="px-6 items-center"
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Logo / Brand */}
+        <View className="items-center mb-12">
+          <View className="w-16 h-16 rounded-2xl bg-primary items-center justify-center mb-5">
+            <Text className="text-primary-foreground text-2xl font-bold font-sans">O</Text>
           </View>
+          <Text className="text-foreground text-3xl font-bold font-sans tracking-tight">Welcome back</Text>
+          <Text className="text-muted-foreground mt-2 font-sans text-base">Sign in to your Osa Service account</Text>
         </View>
 
-        <View className="items-center mt-12 mb-8">
-          <Text className="text-primary-foreground text-4xl font-bold font-sans tracking-tight">Osa Service</Text>
-        </View>
-      </View>
-
-      {/* Bottom Sheet Section */}
-      <View className="flex-1 bg-background rounded-t-[40px] px-6 pt-10 shadow-2xl pb-10">
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerClassName="items-center justify-start pb-8"
-          showsVerticalScrollIndicator={false}
-          keyboardDismissMode="interactive">
+        {/* Form */}
+        <View className="w-full max-w-sm">
           <SignInForm />
+        </View>
 
-          {/* <View className="w-full mt-10 gap-y-6">
-            <View className="flex-row items-center justify-center">
-              <View className="flex-1 h-[1px] bg-border/50" />
-              <Text className="text-muted-foreground font-sans px-4 text-sm">Or sign in with</Text>
-              <View className="flex-1 h-[1px] bg-border/50" />
-            </View>
-
-            <View className="flex-row gap-x-4 w-full">
-              <Pressable className="flex-1 flex-row items-center justify-center bg-transparent border border-border rounded-xl py-4 space-x-2">
-                <Text className="font-bold text-lg text-foreground mr-2">G</Text>
-                <Text className="text-foreground font-sans font-medium">Google</Text>
-              </Pressable>
-              <Pressable className="flex-1 flex-row items-center justify-center bg-transparent border border-border rounded-xl py-4 space-x-2">
-                <Text className="font-bold text-lg text-[#1877F2] mr-2">f</Text>
-                <Text className="text-foreground font-sans font-medium">Facebook</Text>
-              </Pressable>
-            </View>
-          </View> */}
-        </ScrollView>
-      </View>
+        {/* Footer */}
+        <View className="flex-row items-center justify-center mt-8">
+          <Text className="text-muted-foreground font-sans text-sm">Don't have an account? </Text>
+          <Link href="/(auth)/sign-up" asChild>
+            <Pressable>
+              <Text className="text-primary font-sans font-semibold text-sm">Sign Up</Text>
+            </Pressable>
+          </Link>
+        </View>
+      </ScrollView>
     </View>
   );
 }

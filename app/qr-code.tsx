@@ -1,5 +1,5 @@
-import * as React from 'react';
-import { View, Pressable, Image } from 'react-native';
+﻿import * as React from 'react';
+import { View, Pressable } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { ChevronLeft, QrCode } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
@@ -12,16 +12,21 @@ export default function QrCodeScreen() {
 
     return (
         <View className="flex-1 bg-muted">
-            <View style={{ paddingTop: insets.top + 16 }} className="px-4 flex-row items-center justify-between pb-4">
-                <Pressable onPress={() => router.back()} className="bg-background w-10 h-10 rounded-full items-center justify-center shadow-sm">
-                    <Icon as={ChevronLeft} className="text-foreground size-5" />
+            {/* Header */}
+            <View style={{ paddingTop: insets.top + 8 }} className="px-4 pb-4 flex-row items-center">
+                <Pressable onPress={() => router.back()} className="w-10 h-10 items-center justify-center rounded-full">
+                    <Icon as={ChevronLeft} className="text-primary size-6" />
                 </Pressable>
-                <Text className="text-foreground font-semibold text-lg flex-1 text-center mr-10 relative left-[-4px] font-sans">My QR Code</Text>
+                <Text className="text-foreground font-semibold text-lg font-sans flex-1 text-center mr-10">My QR Code</Text>
             </View>
-            <View className="flex-1 items-center justify-center px-6">
-                <View className="bg-background w-full aspect-square rounded-[40px] items-center justify-center shadow-2xl p-8 border border-border">
-                    <Icon as={QrCode} className="text-foreground" size={200} />
-                    <Text className="text-muted-foreground text-center mt-8 font-sans">Accounts' QR Code</Text>
+
+            <View className="flex-1 items-center justify-center px-8">
+                <View className="bg-card w-full rounded-2xl items-center justify-center p-10 border border-border/50">
+                    <View className="bg-muted rounded-2xl p-6 mb-6">
+                        <Icon as={QrCode} className="text-foreground" size={160} />
+                    </View>
+                    <Text className="text-foreground font-semibold text-lg font-sans mb-1">Neil Dime</Text>
+                    <Text className="text-muted-foreground text-sm font-sans">Scan to connect</Text>
                 </View>
             </View>
         </View>

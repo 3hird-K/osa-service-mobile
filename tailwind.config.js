@@ -43,9 +43,9 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: 'var(--font-sans)',
-        serif: 'var(--font-serif)',
-        mono: 'var(--font-mono)',
+        sans: 'Plus Jakarta Sans',
+        serif: 'Lora',
+        mono: 'IBM Plex Mono',
       },
       borderRadius: {
         lg: 'var(--radius)',

@@ -10,10 +10,16 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'nativewind';
 import * as React from 'react';
+import { Appearance, Platform } from 'react-native';
 import { useFonts } from 'expo-font';
-import { PlusJakartaSans_400Regular } from '@expo-google-fonts/plus-jakarta-sans';
+import { PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold } from '@expo-google-fonts/plus-jakarta-sans';
 import { Lora_400Regular } from '@expo-google-fonts/lora';
 import { IBMPlexMono_400Regular } from '@expo-google-fonts/ibm-plex-mono';
+
+// Force light mode at module level before any component renders (not available on web)
+if (Platform.OS !== 'web' && typeof Appearance?.setColorScheme === 'function') {
+  Appearance.setColorScheme('light');
+}
 
 export {
   ErrorBoundary,
@@ -24,12 +30,16 @@ export default function RootLayout() {
 
   const [fontsLoaded] = useFonts({
     'Plus Jakarta Sans': PlusJakartaSans_400Regular,
+    'PlusJakartaSans-Medium': PlusJakartaSans_500Medium,
+    'PlusJakartaSans-SemiBold': PlusJakartaSans_600SemiBold,
+    'PlusJakartaSans-Bold': PlusJakartaSans_700Bold,
     'Lora': Lora_400Regular,
     'IBM Plex Mono': IBMPlexMono_400Regular,
   });
 
-  React.useEffect(() => {
-    setColorScheme('dark');
+  // Force light mode on mount
+  React.useLayoutEffect(() => {
+    setColorScheme('light');
   }, []);
 
   if (!fontsLoaded) {
@@ -38,7 +48,7 @@ export default function RootLayout() {
 
   return (
     <ClerkProvider tokenCache={tokenCache}>
-      <ThemeProvider value={NAV_THEME[colorScheme ?? 'dark']}>
+      <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         <Routes />
         <PortalHost />
