@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Tabs } from 'expo-router';
 import { View, Pressable } from 'react-native';
-import { Home, Heart, UserRound, LucideLayoutDashboard } from 'lucide-react-native';
+import { Home, Heart, UserRound, LucideLayoutDashboard, Bell } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
 
 function CustomTabBar({ state, descriptors, navigation }: any) {
@@ -31,8 +31,8 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
                 };
 
                 let IconComponent = Home;
-                if (route.name === 'dashboard') IconComponent = LucideLayoutDashboard;
-                if (route.name === 'favorites') IconComponent = Heart;
+                if (route.name === 'notifications') IconComponent = Bell;
+                // if (route.name === 'favorites') IconComponent = Heart;
                 if (route.name === 'account') IconComponent = UserRound;
 
                 // When focused, background is 'background' (white-ish) and text is 'foreground' (dark-ish)
@@ -66,9 +66,9 @@ export default function TabLayout() {
             tabBar={(props) => <CustomTabBar {...props} />}
             screenOptions={{ headerShown: false }}
         >
+            <Tabs.Screen name="notifications" options={{ title: 'Notifications' }} />
             <Tabs.Screen name="index" options={{ title: 'Home' }} />
-            <Tabs.Screen name="dashboard" options={{ title: 'Dashboard' }} />
-            <Tabs.Screen name="favorites" options={{ title: 'Favorites' }} />
+            {/* <Tabs.Screen name="favorites" options={{ title: 'Favorites' }} /> */}
             <Tabs.Screen name="account" options={{ title: 'Account' }} />
         </Tabs>
     );
