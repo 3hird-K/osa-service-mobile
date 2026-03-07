@@ -124,7 +124,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Main Action Card */}
-        <View className="bg-card p-6 rounded-[28px] mb-6 shadow-sm border border-border/50">
+        <View className="bg-card p-6 rounded-2xl mb-6 shadow-sm border border-border/50">
           {isLoading ? (
             <View className="gap-y-4">
               <Skeleton className="h-3 w-24 mb-2" />
