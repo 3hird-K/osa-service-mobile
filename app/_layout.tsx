@@ -22,6 +22,14 @@ import { IBMPlexMono_400Regular } from '@expo-google-fonts/ibm-plex-mono';
 //   Appearance.setColorScheme('light');
 // }
 
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
+
+if (!publishableKey) {
+  throw new Error(
+    'Missing Publishable Key. Please set EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in your .env',
+  );
+}
+
 export {
   ErrorBoundary,
 } from 'expo-router';
@@ -48,7 +56,7 @@ export default function RootLayout() {
   }
 
   return (
-    <ClerkProvider tokenCache={tokenCache}>
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
         <StatusBar
           style={colorScheme === 'dark' ? 'light' : 'dark'}
