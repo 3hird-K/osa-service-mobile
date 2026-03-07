@@ -1,4 +1,4 @@
-﻿import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
@@ -10,21 +10,58 @@ import { Eye, EyeOff } from 'lucide-react-native';
 
 export function SignUpForm() {
   const { signUp, isLoaded } = useSignUp();
+  const [firstName, setFirstName] = React.useState('');
+  const [lastName, setLastName] = React.useState('');
+  const [username, setUsername] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [passwordVisible, setPasswordVisible] = React.useState(false);
+
+  const lastNameRef = React.useRef<TextInput>(null);
+  const usernameRef = React.useRef<TextInput>(null);
+  const emailRef = React.useRef<TextInput>(null);
   const passwordInputRef = React.useRef<TextInput>(null);
-  const [error, setError] = React.useState<{ email?: string; password?: string }>({});
+
+  const [error, setError] = React.useState<{
+    firstName?: string;
+    lastName?: string;
+    username?: string;
+    email?: string;
+    password?: string;
+  }>({});
 
   async function onSubmit() {
     if (!isLoaded) return;
     try {
-      await signUp.create({ emailAddress: email, password });
+      await signUp.create({
+        firstName,
+        lastName,
+        username,
+        emailAddress: email,
+        password,
+      });
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
       router.push(`/(auth)/sign-up/verify-email?email=${email}` as any);
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.errors) {
+        const newError: typeof error = {};
+        for (const e of err.errors) {
+          const msg: string = e.message ?? '';
+          const param: string = e.meta?.paramName ?? '';
+          if (param === 'first_name') newError.firstName = msg;
+          else if (param === 'last_name') newError.lastName = msg;
+          else if (param === 'username') newError.username = msg;
+          else if (param === 'email_address') newError.email = msg;
+          else if (param === 'password') newError.password = msg;
+          else newError.email = msg;
+        }
+        setError(newError);
+        return;
+      }
       if (err instanceof Error) {
-        const isEmailMessage = err.message.toLowerCase().includes('identifier') || err.message.toLowerCase().includes('email');
+        const isEmailMessage =
+          err.message.toLowerCase().includes('identifier') ||
+          err.message.toLowerCase().includes('email');
         setError(isEmailMessage ? { email: err.message } : { password: err.message });
         return;
       }
@@ -32,32 +69,94 @@ export function SignUpForm() {
     }
   }
 
-  function onEmailSubmitEditing() {
-    passwordInputRef.current?.focus();
-  }
+  const inputClass =
+    'rounded-xl border-border/60 bg-muted/50 px-4 py-3.5 font-sans text-foreground text-[15px]';
 
   return (
     <View className="gap-5 w-full">
       <View className="gap-4">
+        {/* First Name & Last Name row */}
+        <View className="flex-row gap-3">
+          <View className="flex-1 gap-1.5">
+            <Text className="text-sm font-medium text-foreground font-sans ml-1">First Name</Text>
+            <Input
+              id="firstName"
+              placeholder="John"
+              autoCapitalize="words"
+              autoComplete="given-name"
+              onChangeText={setFirstName}
+              onSubmitEditing={() => lastNameRef.current?.focus()}
+              returnKeyType="next"
+              submitBehavior="submit"
+              className={inputClass}
+            />
+            {error.firstName ? (
+              <Text className="text-xs font-medium text-destructive ml-1">{error.firstName}</Text>
+            ) : null}
+          </View>
+
+          <View className="flex-1 gap-1.5">
+            <Text className="text-sm font-medium text-foreground font-sans ml-1">Last Name</Text>
+            <Input
+              ref={lastNameRef}
+              id="lastName"
+              placeholder="Doe"
+              autoCapitalize="words"
+              autoComplete="family-name"
+              onChangeText={setLastName}
+              onSubmitEditing={() => usernameRef.current?.focus()}
+              returnKeyType="next"
+              submitBehavior="submit"
+              className={inputClass}
+            />
+            {error.lastName ? (
+              <Text className="text-xs font-medium text-destructive ml-1">{error.lastName}</Text>
+            ) : null}
+          </View>
+        </View>
+
+        {/* Username */}
+        <View className="gap-1.5">
+          <Text className="text-sm font-medium text-foreground font-sans ml-1">Username</Text>
+          <Input
+            ref={usernameRef}
+            id="username"
+            placeholder="johndoe123"
+            autoCapitalize="none"
+            autoCorrect={false}
+            onChangeText={setUsername}
+            onSubmitEditing={() => emailRef.current?.focus()}
+            returnKeyType="next"
+            submitBehavior="submit"
+            className={inputClass}
+          />
+          {error.username ? (
+            <Text className="text-xs font-medium text-destructive ml-1">{error.username}</Text>
+          ) : null}
+        </View>
+
+        {/* Email */}
         <View className="gap-1.5">
           <Text className="text-sm font-medium text-foreground font-sans ml-1">Email</Text>
           <Input
+            ref={emailRef}
             id="email"
             placeholder="you@example.com"
             keyboardType="email-address"
             autoComplete="email"
             autoCapitalize="none"
             onChangeText={setEmail}
-            onSubmitEditing={onEmailSubmitEditing}
+            onSubmitEditing={() => passwordInputRef.current?.focus()}
             returnKeyType="next"
             submitBehavior="submit"
-            className="rounded-xl border-border/60 bg-muted/50 px-4 py-3.5 font-sans text-foreground text-[15px]"
+            className={inputClass}
           />
           {error.email ? (
             <Text className="text-xs font-medium text-destructive ml-1">{error.email}</Text>
           ) : null}
         </View>
 
+        {/* Password */}
         <View className="gap-1.5">
           <Text className="text-sm font-medium text-foreground font-sans ml-1">Password</Text>
           <View className="relative flex-row items-center">
@@ -69,7 +168,7 @@ export function SignUpForm() {
               onChangeText={setPassword}
               returnKeyType="send"
               onSubmitEditing={onSubmit}
-              className="flex-1 rounded-xl border-border/60 bg-muted/50 px-4 py-3.5 font-sans text-foreground text-[15px]"
+              className={`flex-1 ${inputClass}`}
             />
             <Pressable
               onPress={() => setPasswordVisible(!passwordVisible)}

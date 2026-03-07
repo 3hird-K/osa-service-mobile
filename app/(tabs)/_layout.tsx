@@ -74,8 +74,7 @@ function FloatingCircleTabBar({ state, descriptors, navigation }: any) {
 
     return (
         <View
-            style={[styles.outerContainer, { bottom: Math.max(insets.bottom, 12) }]}
-            pointerEvents="box-none"
+            style={[styles.outerContainer, { bottom: Math.max(insets.bottom, 12), pointerEvents: 'box-none' }]}
         >
             {/* ─── Floating circle (above bar) ─── */}
             <Animated.View

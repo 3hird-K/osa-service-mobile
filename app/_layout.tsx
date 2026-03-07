@@ -7,6 +7,8 @@ import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { tokenCache } from '@clerk/clerk-expo/token-cache';
 import { ThemeProvider } from '@react-navigation/native';
 import { PortalHost } from '@rn-primitives/portal';
+import { Toaster } from 'sonner-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -56,15 +58,18 @@ export default function RootLayout() {
   }
 
   return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
-        <StatusBar
-          style={colorScheme === 'dark' ? 'light' : 'dark'}
-        />
-        <Routes />
-        <PortalHost />
-      </ThemeProvider>
-    </ClerkProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+        <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
+          <StatusBar
+            style={colorScheme === 'dark' ? 'light' : 'dark'}
+          />
+          <Routes />
+          <Toaster position="top-center" />
+          <PortalHost />
+        </ThemeProvider>
+      </ClerkProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -102,6 +107,7 @@ function Routes() {
         <Stack.Screen name="help-support" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="qr-code" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="terms-conditions" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="camera" options={{ headerShown: false, presentation: 'modal' }} />
       </Stack.Protected>
 
     </Stack>

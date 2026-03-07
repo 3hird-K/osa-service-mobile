@@ -1,4 +1,4 @@
-﻿import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
@@ -10,7 +10,7 @@ import { Eye, EyeOff } from 'lucide-react-native';
 
 export function SignInForm() {
   const { signIn, setActive, isLoaded } = useSignIn();
-  const [email, setEmail] = React.useState('');
+  const [identifier, setIdentifier] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [passwordVisible, setPasswordVisible] = React.useState(false);
   const [needs2FA, setNeeds2FA] = React.useState(false);
@@ -21,7 +21,7 @@ export function SignInForm() {
   async function onSubmit() {
     if (!isLoaded) return;
     try {
-      const signInAttempt = await signIn.create({ identifier: email, password });
+      const signInAttempt = await signIn.create({ identifier, password });
       if (signInAttempt.status === 'complete') {
         setError({});
         await setActive({ session: signInAttempt.createdSessionId });
@@ -35,9 +35,19 @@ export function SignInForm() {
         return;
       }
       console.error(JSON.stringify(signInAttempt, null, 2));
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.errors) {
+        const e = err.errors[0];
+        const msg: string = e?.message ?? '';
+        const param: string = e?.meta?.paramName ?? '';
+        setError(param === 'password' ? { password: msg } : { email: msg });
+        return;
+      }
       if (err instanceof Error) {
-        const isEmailMessage = err.message.toLowerCase().includes('identifier') || err.message.toLowerCase().includes('email');
+        const isEmailMessage =
+          err.message.toLowerCase().includes('identifier') ||
+          err.message.toLowerCase().includes('email') ||
+          err.message.toLowerCase().includes('username');
         setError(isEmailMessage ? { email: err.message } : { password: err.message });
         return;
       }
@@ -102,14 +112,15 @@ export function SignInForm() {
         <>
           <View className="gap-4">
             <View className="gap-1.5">
-              <Text className="text-sm font-medium text-foreground font-sans ml-1">Email</Text>
+              <Text className="text-sm font-medium text-foreground font-sans ml-1">Email or Username</Text>
               <Input
-                id="email"
-                placeholder="you@example.com"
-                keyboardType="email-address"
-                autoComplete="email"
+                id="identifier"
+                placeholder="you@example.com or username"
+                keyboardType="default"
+                autoComplete="username"
                 autoCapitalize="none"
-                onChangeText={setEmail}
+                autoCorrect={false}
+                onChangeText={setIdentifier}
                 onSubmitEditing={onEmailSubmitEditing}
                 returnKeyType="next"
                 submitBehavior="submit"
@@ -147,7 +158,7 @@ export function SignInForm() {
           </View>
 
           <View className="items-end">
-            <Link asChild href={`/(auth)/forgot-password?email=${email}` as any}>
+            <Link asChild href={`/(auth)/forgot-password?email=${identifier}` as any}>
               <Pressable>
                 <Text className="text-sm text-primary font-sans font-medium">Forgot password?</Text>
               </Pressable>

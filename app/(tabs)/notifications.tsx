@@ -1,15 +1,30 @@
 ﻿import * as React from 'react';
-import { View, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, ScrollView, TouchableOpacity, RefreshControl, Pressable } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
-import { Bell, ShieldCheck, Sparkles, X } from 'lucide-react-native';
+import { Bell, CheckCheck, ShieldCheck, Sparkles, Trash2, X, type LucideIcon } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Skeleton } from '@/components/ui/skeleton';
-import Animated, { Layout, FadeIn, FadeOut } from 'react-native-reanimated';
+import { useColorScheme } from 'nativewind';
+import Animated, {
+    Layout,
+    FadeIn,
+    FadeOut,
+    FadeInDown,
+} from 'react-native-reanimated';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
-const INITIAL_NOTIFICATIONS = [
+type Notification = {
+    id: number;
+    icon: LucideIcon;
+    title: string;
+    message: string;
+    time: string;
+    unread: boolean;
+};
+
+const INITIAL_NOTIFICATIONS: Notification[] = [
     {
         id: 1,
         icon: ShieldCheck,
@@ -36,6 +51,115 @@ const INITIAL_NOTIFICATIONS = [
     },
 ];
 
+// ─── Notification Row ────────────────────────────────────────────────
+// Theme-aware action colors
+const ACTION_COLORS = {
+    light: { read: '#34C759', delete: '#FF3B30' },
+    dark: { read: '#30D158', delete: '#FF453A' },
+};
+
+function NotificationRow({
+    item,
+    isLast,
+    onMarkAsRead,
+    onDelete,
+}: {
+    item: Notification;
+    isLast: boolean;
+    onMarkAsRead: (id: number) => void;
+    onDelete: (id: number) => void;
+}) {
+    const { colorScheme } = useColorScheme();
+    const colors = ACTION_COLORS[colorScheme === 'dark' ? 'dark' : 'light'];
+    const [showActions, setShowActions] = React.useState(false);
+
+    return (
+        <View style={{ overflow: 'hidden' }}>
+            <Pressable
+                onPress={() => setShowActions((v) => !v)}
+                className={
+                    'flex-row px-4 py-4 bg-card ' +
+                    (!isLast && !showActions ? 'border-b border-border/30' : '')
+                }
+            >
+                <View
+                    className={
+                        'w-10 h-10 rounded-full items-center justify-center mr-3 ' +
+                        (item.unread ? 'bg-primary/10' : 'bg-muted')
+                    }
+                >
+                    <Icon
+                        as={item.icon}
+                        className={
+                            'size-5 ' +
+                            (item.unread ? 'text-primary' : 'text-muted-foreground')
+                        }
+                    />
+                </View>
+
+                <View className="flex-1">
+                    <View className="flex-row items-center justify-between mb-1">
+                        <Text
+                            className={
+                                'text-[15px] font-sans ' +
+                                (item.unread
+                                    ? 'font-semibold text-foreground'
+                                    : 'font-medium text-foreground/80')
+                            }
+                        >
+                            {item.title}
+                        </Text>
+                        <Text className="text-xs text-muted-foreground font-sans">
+                            {item.time}
+                        </Text>
+                    </View>
+
+                    <Text className="text-sm text-muted-foreground font-sans leading-5">
+                        {item.message}
+                    </Text>
+                </View>
+
+                {item.unread && (
+                    <View className="w-2 h-2 rounded-full bg-primary ml-2 mt-2" />
+                )}
+            </Pressable>
+
+            {showActions && (
+                <Animated.View
+                    entering={FadeIn.duration(150)}
+                    className={'flex-row ' + (!isLast ? 'border-b border-border/30' : '')}
+                >
+                    {item.unread && (
+                        <Pressable
+                            onPress={() => {
+                                onMarkAsRead(item.id);
+                                setShowActions(false);
+                            }}
+                            style={{ backgroundColor: colors.read }}
+                            className="flex-1 flex-row items-center justify-center py-2.5 gap-x-1.5"
+                        >
+                            <Icon as={CheckCheck} className="text-white size-4" />
+                            <Text className="text-white font-semibold text-xs font-sans">Mark as Read</Text>
+                        </Pressable>
+                    )}
+                    <Pressable
+                        onPress={() => {
+                            onDelete(item.id);
+                            setShowActions(false);
+                        }}
+                        style={{ backgroundColor: colors.delete }}
+                        className="flex-1 flex-row items-center justify-center py-2.5 gap-x-1.5"
+                    >
+                        <Icon as={Trash2} className="text-white size-4" />
+                        <Text className="text-white font-semibold text-xs font-sans">Delete</Text>
+                    </Pressable>
+                </Animated.View>
+            )}
+        </View>
+    );
+}
+
+// ─── Main Screen ─────────────────────────────────────────────────────
 export default function NotificationsScreen() {
     const [notifications, setNotifications] = React.useState(INITIAL_NOTIFICATIONS);
     const [refreshing, setRefreshing] = React.useState(false);
@@ -50,15 +174,17 @@ export default function NotificationsScreen() {
         };
     }, []);
 
-    const unreadCount = notifications.filter(n => n.unread).length;
+    const unreadCount = notifications.filter((n) => n.unread).length;
 
-    const markAsRead = (id: number) => {
-        setNotifications(prev =>
-            prev.map(n =>
-                n.id === id ? { ...n, unread: false } : n
-            )
+    const markAsRead = React.useCallback((id: number) => {
+        setNotifications((prev) =>
+            prev.map((n) => (n.id === id ? { ...n, unread: false } : n)),
         );
-    };
+    }, []);
+
+    const deleteNotification = React.useCallback((id: number) => {
+        setNotifications((prev) => prev.filter((n) => n.id !== id));
+    }, []);
 
     const clearAll = () => {
         setNotifications([]);
@@ -80,7 +206,6 @@ export default function NotificationsScreen() {
 
     const onRefresh = () => {
         setRefreshing(true);
-
         setTimeout(() => {
             setNotifications(INITIAL_NOTIFICATIONS);
             setRefreshing(false);
@@ -89,7 +214,6 @@ export default function NotificationsScreen() {
 
     return (
         <SafeAreaView className="flex-1 bg-muted" edges={['top']}>
-
             {/* HEADER */}
             <View className="px-5 py-4 flex-row justify-between items-center">
                 <View>
@@ -130,32 +254,31 @@ export default function NotificationsScreen() {
             </View>
 
             {/* EMPTY STATE */}
-            {notifications.length === 0 ? (
-                <View className="flex-1 items-center justify-center">
+            {notifications.length === 0 && !isLoading ? (
+                <Animated.View
+                    entering={FadeIn.duration(300)}
+                    className="flex-1 items-center justify-center"
+                >
                     <Icon as={Bell} className="size-12 text-muted-foreground mb-3" />
-                    <Text className="text-muted-foreground">
-                        No notifications yet
-                    </Text>
-                </View>
+                    <Text className="text-muted-foreground font-sans">No notifications yet</Text>
+                </Animated.View>
             ) : (
-
                 <ScrollView
                     className="flex-1"
                     contentContainerClassName="px-4 pb-24"
                     showsVerticalScrollIndicator={false}
                     refreshControl={
-                        <RefreshControl
-                            refreshing={refreshing}
-                            onRefresh={onRefresh}
-                        />
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
                     }
                 >
                     <View className="bg-card rounded-xl border border-border/50 overflow-hidden">
-
                         {isLoading ? (
                             <View>
                                 {[1, 2, 3].map((i, index) => (
-                                    <View key={`skeleton-${i}`} className={`flex-row px-4 py-4 ${index < 2 ? 'border-b border-border/30' : ''}`}>
+                                    <View
+                                        key={`skeleton-${i}`}
+                                        className={`flex-row px-4 py-4 ${index < 2 ? 'border-b border-border/30' : ''}`}
+                                    >
                                         <Skeleton className="w-10 h-10 rounded-full mr-3" />
                                         <View className="flex-1 gap-y-2 mt-1">
                                             <View className="flex-row items-center justify-between">
@@ -170,66 +293,31 @@ export default function NotificationsScreen() {
                             </View>
                         ) : (
                             notifications.map((item, index) => (
-                                <TouchableOpacity
+                                <Animated.View
                                     key={item.id}
-                                    onPress={() => markAsRead(item.id)}
-                                    className={
-                                        'flex-row px-4 py-4 ' +
-                                        (index < notifications.length - 1
-                                            ? 'border-b border-border/30'
-                                            : '')
-                                    }
+                                    entering={FadeInDown.delay(index * 60).duration(300)}
+                                    exiting={FadeOut.duration(200)}
+                                    layout={Layout.springify().damping(18).stiffness(150)}
                                 >
-                                    <View
-                                        className={
-                                            'w-10 h-10 rounded-full items-center justify-center mr-3 ' +
-                                            (item.unread
-                                                ? 'bg-primary/10'
-                                                : 'bg-muted')
-                                        }
-                                    >
-                                        <Icon
-                                            as={item.icon}
-                                            className={
-                                                'size-5 ' +
-                                                (item.unread
-                                                    ? 'text-primary'
-                                                    : 'text-muted-foreground')
-                                            }
-                                        />
-                                    </View>
-
-                                    <View className="flex-1">
-                                        <View className="flex-row items-center justify-between mb-1">
-                                            <Text
-                                                className={
-                                                    'text-[15px] font-sans ' +
-                                                    (item.unread
-                                                        ? 'font-semibold text-foreground'
-                                                        : 'font-medium text-foreground/80')
-                                                }
-                                            >
-                                                {item.title}
-                                            </Text>
-
-                                            <Text className="text-xs text-muted-foreground font-sans">
-                                                {item.time}
-                                            </Text>
-                                        </View>
-
-                                        <Text className="text-sm text-muted-foreground font-sans leading-5">
-                                            {item.message}
-                                        </Text>
-                                    </View>
-
-                                    {item.unread && (
-                                        <View className="w-2 h-2 rounded-full bg-primary ml-2 mt-2" />
-                                    )}
-                                </TouchableOpacity>
+                                    <NotificationRow
+                                        item={item}
+                                        isLast={index === notifications.length - 1}
+                                        onMarkAsRead={markAsRead}
+                                        onDelete={deleteNotification}
+                                    />
+                                </Animated.View>
                             ))
                         )}
-
                     </View>
+
+                    {/* Hint text */}
+                    {!isLoading && notifications.length > 0 && (
+                        <Animated.View entering={FadeIn.delay(300).duration(400)}>
+                            <Text className="text-center text-xs text-muted-foreground/60 font-sans mt-4">
+                                Tap a notification to reveal archive and delete 
+                            </Text>
+                        </Animated.View>
+                    )}
                 </ScrollView>
             )}
         </SafeAreaView>

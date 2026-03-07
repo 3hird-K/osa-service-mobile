@@ -1,4 +1,4 @@
-﻿import * as React from 'react';
+import * as React from 'react';
 import { View, ScrollView, Pressable, Image, Switch } from 'react-native';
 import { Link, Stack, useRouter } from 'expo-router';
 import { Text } from '@/components/ui/text';
@@ -6,12 +6,18 @@ import { User, HelpCircle, ChevronRight, Pencil, QrCode, Moon, FileText, Message
 import { Icon } from '@/components/ui/icon';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from 'nativewind';
+import { useUser } from '@clerk/clerk-expo';
 
 import { THEME } from '@/lib/theme';
 
 export default function AccountScreen() {
     const router = useRouter();
     const { colorScheme, toggleColorScheme } = useColorScheme();
+    const { user } = useUser();
+
+    const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'No name';
+    const email = user?.primaryEmailAddress?.emailAddress ?? '';
+    const imageUrl = user?.imageUrl;
 
     return (
         <SafeAreaView className="flex-1 bg-muted" edges={['top']}>
@@ -36,13 +42,21 @@ export default function AccountScreen() {
                     {/* Profile Card */}
                     <Link href="/account-details" asChild>
                         <Pressable className="flex-row items-center bg-card rounded-xl p-4 border border-border/50">
-                            <Image
-                                source={{ uri: 'https://github.com/shadcn.png' }}
-                                className="w-14 h-14 rounded-full"
-                            />
+                            {imageUrl ? (
+                                <Image
+                                    source={{ uri: imageUrl }}
+                                    className="w-14 h-14 rounded-full"
+                                />
+                            ) : (
+                                <View className="w-14 h-14 rounded-full bg-primary/10 items-center justify-center">
+                                    <Text className="text-primary font-bold text-xl font-sans">
+                                        {fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
+                                    </Text>
+                                </View>
+                            )}
                             <View className="flex-1 ml-4 gap-y-0.5">
-                                <Text className="font-semibold text-lg text-foreground font-sans">Neil Dime</Text>
-                                <Text className="text-muted-foreground text-sm font-sans">neildime03@gmail.com</Text>
+                                <Text className="font-semibold text-lg text-foreground font-sans">{fullName}</Text>
+                                <Text className="text-muted-foreground text-sm font-sans">{email}</Text>
                             </View>
                             <Icon as={ChevronRight} className="text-muted-foreground size-5" />
                         </Pressable>
@@ -81,7 +95,6 @@ export default function AccountScreen() {
                             <SettingsItem icon={FileText} label="Terms & Conditions" href="/terms-conditions" isLast />
                         </View>
                     </View>
-
 
                 </View>
             </ScrollView>

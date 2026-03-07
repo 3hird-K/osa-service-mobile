@@ -1,11 +1,12 @@
 ﻿import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
+import { AlertDialog } from '@/components/ui/alert-dialog';
 import { useUser, useAuth } from '@clerk/clerk-expo';
 import { Stack, useRouter } from 'expo-router';
 import { Calendar, Camera, Play, Coffee, User, ChevronRight, LogOut } from 'lucide-react-native';
 import * as React from 'react';
-import { ScrollView, View, Alert, Image, Pressable, RefreshControl } from 'react-native';
+import { ScrollView, View, Image, Pressable, RefreshControl } from 'react-native';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -53,16 +54,10 @@ export default function HomeScreen() {
   ];
 
   const totalHoursRendered = completedActivities.reduce((acc, curr) => acc + curr.hours, 0);
+  const [breakDialog, setBreakDialog] = React.useState(false);
 
   const handleBreak = () => {
-    Alert.alert(
-      "Take a Break?",
-      "Your current progress will be saved.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Confirm Break", onPress: () => setIsActive(false), style: "destructive" }
-      ]
-    );
+    setBreakDialog(true);
   };
 
 
@@ -81,7 +76,7 @@ export default function HomeScreen() {
         <View className="flex-row items-center justify-between mb-8 mt-2 px-1">
           <View>
             <Text className="text-muted-foreground text-[13px] font-semibold font-sans uppercase tracking-wider">{getGreeting()}</Text>
-            <Text className="text-foreground font-bold text-3xl font-sans tracking-tight mt-0.5">{user?.firstName ?? 'Neil Dime'}</Text>
+            <Text className="text-foreground font-bold text-3xl font-sans tracking-tight mt-0.5">{user?.username ?? 'Neil Dime'}</Text>
           </View>
           <Popover>
             <PopoverTrigger asChild>
@@ -240,6 +235,17 @@ export default function HomeScreen() {
         </View>
 
       </ScrollView>
+
+      <AlertDialog
+        visible={breakDialog}
+        onClose={() => setBreakDialog(false)}
+        title="Take a Break?"
+        message="Your current progress will be saved."
+        actions={[
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Confirm Break', style: 'destructive', onPress: () => setIsActive(false) },
+        ]}
+      />
     </SafeAreaView>
   );
 }
