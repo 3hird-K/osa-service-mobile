@@ -15,8 +15,8 @@ export default function CameraProofScreen() {
     return (
       <View className="flex-1 justify-center items-center bg-black p-6">
         <Text className="text-white text-center text-lg mb-6">Camera permission is required for proof of service.</Text>
-        <TouchableOpacity 
-          onPress={requestPermission} 
+        <TouchableOpacity
+          onPress={requestPermission}
           className="bg-orange-600 px-8 py-4 rounded-2xl"
         >
           <Text className="text-white font-bold">Grant Camera Access</Text>
@@ -29,30 +29,32 @@ export default function CameraProofScreen() {
     if (cameraRef.current) {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.5 });
       console.log('Proof captured:', photo.uri);
-      
+
       // Here you would upload photo.uri to your server/storage
       // and update the Clock Out timestamp in your DB.
-      
+
       alert("Clock-out verified with proof!");
-      router.replace('/(tabs)'); 
+      router.replace('/(tabs)');
     }
   }
 
   return (
     <View className="flex-1 bg-black">
-      <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing={facing}>
-        <View className="flex-1 bg-transparent justify-between p-10">
-          
+      <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing={facing} />
+
+      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+        <View className="flex-1 bg-transparent justify-between p-10" pointerEvents="box-none">
+
           {/* Top Controls */}
           <View className="flex-row justify-between mt-10">
-            <TouchableOpacity 
-              onPress={() => router.back()} 
+            <TouchableOpacity
+              onPress={() => router.back()}
               className="p-3 bg-black/40 rounded-full"
             >
               <X color="white" size={28} />
             </TouchableOpacity>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               onPress={() => setFacing(current => (current === 'back' ? 'front' : 'back'))}
               className="p-3 bg-black/40 rounded-full"
             >
@@ -65,7 +67,7 @@ export default function CameraProofScreen() {
             <Text className="text-white/70 text-xs mb-4 uppercase tracking-widest font-bold">
               Capture Live Proof
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={takePicture}
               className="w-20 h-20 bg-white rounded-full items-center justify-center border-8 border-orange-600/30"
             >
@@ -76,7 +78,7 @@ export default function CameraProofScreen() {
           </View>
 
         </View>
-      </CameraView>
+      </View>
     </View>
   );
 }

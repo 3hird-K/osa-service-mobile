@@ -85,7 +85,7 @@ export function SignInForm() {
               onChangeText={setCode}
               returnKeyType="send"
               onSubmitEditing={onVerify2FA}
-              className="rounded-xl border-border/60 bg-muted/50 px-4 py-3.5 font-sans text-foreground text-[15px] text-center tracking-[0.3em]"
+              className="rounded-xl border-border/60 bg-muted/50 px-4 py-3.5 font-sans text-foreground text-[15px] text-center"
             />
             {error.code ? (
               <Text className="text-xs font-medium text-destructive ml-1">{error.code}</Text>
@@ -101,62 +101,62 @@ export function SignInForm() {
       ) : (
         <>
           <View className="gap-4">
-        <View className="gap-1.5">
-          <Text className="text-sm font-medium text-foreground font-sans ml-1">Email</Text>
-          <Input
-            id="email"
-            placeholder="you@example.com"
-            keyboardType="email-address"
-            autoComplete="email"
-            autoCapitalize="none"
-            onChangeText={setEmail}
-            onSubmitEditing={onEmailSubmitEditing}
-            returnKeyType="next"
-            submitBehavior="submit"
-            className="rounded-xl border-border/60 bg-muted/50 px-4 py-3.5 font-sans text-foreground text-[15px]"
-          />
-          {error.email ? (
-            <Text className="text-xs font-medium text-destructive ml-1">{error.email}</Text>
-          ) : null}
-        </View>
+            <View className="gap-1.5">
+              <Text className="text-sm font-medium text-foreground font-sans ml-1">Email</Text>
+              <Input
+                id="email"
+                placeholder="you@example.com"
+                keyboardType="email-address"
+                autoComplete="email"
+                autoCapitalize="none"
+                onChangeText={setEmail}
+                onSubmitEditing={onEmailSubmitEditing}
+                returnKeyType="next"
+                submitBehavior="submit"
+                className="rounded-xl border-border/60 bg-muted/50 px-4 py-3.5 font-sans text-foreground text-[15px]"
+              />
+              {error.email ? (
+                <Text className="text-xs font-medium text-destructive ml-1">{error.email}</Text>
+              ) : null}
+            </View>
 
-        <View className="gap-1.5">
-          <Text className="text-sm font-medium text-foreground font-sans ml-1">Password</Text>
-          <View className="relative flex-row items-center">
-            <Input
-              ref={passwordInputRef}
-              id="password"
-              placeholder="Enter your password"
-              secureTextEntry={!passwordVisible}
-              onChangeText={setPassword}
-              returnKeyType="send"
-              onSubmitEditing={onSubmit}
-              className="flex-1 rounded-xl border-border/60 bg-muted/50 px-4 py-3.5 font-sans text-foreground text-[15px]"
-            />
-            <Pressable
-              onPress={() => setPasswordVisible(!passwordVisible)}
-              className="absolute right-4 h-full justify-center"
-            >
-              <Icon as={passwordVisible ? EyeOff : Eye} size={18} className="text-muted-foreground" />
-            </Pressable>
+            <View className="gap-1.5">
+              <Text className="text-sm font-medium text-foreground font-sans ml-1">Password</Text>
+              <View className="relative flex-row items-center">
+                <Input
+                  ref={passwordInputRef}
+                  id="password"
+                  placeholder="Enter your password"
+                  secureTextEntry={!passwordVisible}
+                  onChangeText={setPassword}
+                  returnKeyType="send"
+                  onSubmitEditing={onSubmit}
+                  className="flex-1 rounded-xl border-border/60 bg-muted/50 px-4 py-3.5 font-sans text-foreground text-[15px]"
+                />
+                <Pressable
+                  onPress={() => setPasswordVisible(!passwordVisible)}
+                  className="absolute right-4 h-full justify-center"
+                >
+                  <Icon as={passwordVisible ? EyeOff : Eye} size={18} className="text-muted-foreground" />
+                </Pressable>
+              </View>
+              {error.password ? (
+                <Text className="text-xs font-medium text-destructive ml-1">{error.password}</Text>
+              ) : null}
+            </View>
           </View>
-          {error.password ? (
-            <Text className="text-xs font-medium text-destructive ml-1">{error.password}</Text>
-          ) : null}
-        </View>
-      </View>
 
-      <View className="items-end">
-        <Link asChild href={`/(auth)/forgot-password?email=${email}` as any}>
-          <Pressable>
-            <Text className="text-sm text-primary font-sans font-medium">Forgot password?</Text>
-          </Pressable>
-        </Link>
-      </View>
+          <View className="items-end">
+            <Link asChild href={`/(auth)/forgot-password?email=${email}` as any}>
+              <Pressable>
+                <Text className="text-sm text-primary font-sans font-medium">Forgot password?</Text>
+              </Pressable>
+            </Link>
+          </View>
 
-      <Button className="w-full rounded-xl py-4 bg-primary" onPress={onSubmit}>
-        <Text className="text-primary-foreground font-semibold font-sans text-[15px]">Sign In</Text>
-      </Button>
+          <Button className="w-full rounded-xl py-4 bg-primary" onPress={onSubmit}>
+            <Text className="text-primary-foreground font-semibold font-sans text-[15px]">Sign In</Text>
+          </Button>
         </>
       )}
     </View>

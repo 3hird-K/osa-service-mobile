@@ -1,5 +1,5 @@
 ﻿import { VerifyEmailForm } from '@/components/verify-email-form';
-import { ScrollView, View, Pressable, Image } from 'react-native';
+import { ScrollView, View, Pressable, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { ChevronLeft } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
@@ -12,7 +12,7 @@ export default function VerifyEmailScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <View className="flex-1 bg-background">
+    <KeyboardAvoidingView className="flex-1 bg-background" behavior="padding">
       {/* Header */}
       <View style={{ paddingTop: insets.top + 8 }} className="px-4 pb-2">
         <Pressable onPress={() => router.back()} className="w-10 h-10 items-center justify-center rounded-full">
@@ -42,6 +42,6 @@ export default function VerifyEmailScreen() {
           <VerifyEmailForm />
         </View>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }

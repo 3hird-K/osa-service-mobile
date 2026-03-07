@@ -22,7 +22,7 @@ const TAB_ITEMS: Record<string, { icon: any }> = {
 
 const CIRCLE_SIZE = 56;
 const BAR_HEIGHT = 65;
-const CIRCLE_RAISE = 10; 
+const CIRCLE_RAISE = 2;
 const SPRING = { damping: 16, stiffness: 140, mass: 0.85 };
 
 /* ── Floating circle tab bar ────────────────────────── */

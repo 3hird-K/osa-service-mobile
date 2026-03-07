@@ -1,6 +1,7 @@
 ﻿import { ResetPasswordForm } from '@/components/reset-password-form';
 import * as React from 'react';
-import { ScrollView, View, Pressable, Image } from 'react-native';
+import { View, Pressable, Image, Platform } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Text } from '@/components/ui/text';
 import { ChevronLeft } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
@@ -14,19 +15,20 @@ export default function ResetPasswordScreen() {
   return (
     <View className="flex-1 bg-background">
       {/* Header */}
-      <View style={{ paddingTop: insets.top + 8 }} className="px-4 pb-2">
+      <View style={{ paddingTop: insets.top + 8 }} className="px-4 pb-2 z-10">
         <Pressable onPress={() => router.back()} className="w-10 h-10 items-center justify-center rounded-full">
           <Icon as={ChevronLeft} className="text-primary size-6" />
         </Pressable>
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         className="flex-1"
         contentContainerClassName="px-6 items-center pt-8"
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
         showsVerticalScrollIndicator={false}
+        enableOnAndroid={true}
+        extraScrollHeight={20}
       >
         {/* Icon */}
         <View className="items-center mb-10">
@@ -51,7 +53,7 @@ export default function ResetPasswordScreen() {
             </Pressable>
           </Link>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }
