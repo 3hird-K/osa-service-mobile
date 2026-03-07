@@ -11,13 +11,24 @@ export default function HomeScreen() {
   const { user } = useUser();
   const router = useRouter();
   const [isActive, setIsActive] = React.useState(false);
-  
+
   const currentActivity = "Library Assistance";
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning,';
+    if (hour < 18) return 'Good Afternoon,';
+    return 'Good Evening,';
+  };
 
   // Data for the 2 completed activities
   const completedActivities = [
     { id: '1', name: 'Cafeteria', hours: 2, date: 'March 07, 2026' },
     { id: '2', name: 'Fitness Gym', hours: 1.5, date: 'March 06, 2026' },
+    { id: '3', name: 'Library Assistance', hours: 2, date: 'March 05, 2026' },
+    { id: '4', name: 'Cafeteria', hours: 2, date: 'March 04, 2026' },
+    { id: '5', name: 'Fitness Gym', hours: 1.5, date: 'March 03, 2026' },
+    { id: '6', name: 'Library Assistance', hours: 2, date: 'March 02, 2026' },
   ];
 
   const totalHoursRendered = completedActivities.reduce((acc, curr) => acc + curr.hours, 0);
@@ -34,110 +45,115 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-muted"> 
+    <SafeAreaView className="flex-1 bg-muted">
       <Stack.Screen options={{ headerShown: false }} />
-      
-      <ScrollView 
-        contentContainerStyle={{ paddingTop: 20, paddingBottom: 120 }} 
-        className="px-5" 
+
+      <ScrollView
+        contentContainerStyle={{ paddingTop: 20, paddingBottom: 120 }}
+        className="px-5"
         showsVerticalScrollIndicator={false}
       >
         {/* Header Section */}
-        <View className="flex-row items-center mb-8 mt-4">
-          <View className="w-14 h-14 rounded-full bg-[#1C1C1E] items-center justify-center overflow-hidden border border-white/5">
-             {user?.imageUrl ? (
-               <Image source={{ uri: user.imageUrl }} className="w-full h-full" />
-             ) : (
-               <Icon as={User} size={28} className="text-gray-400" />
-             )}
+        <View className="flex-row items-center justify-between mb-8 mt-2 px-1">
+          <View>
+            <Text className="text-muted-foreground text-[13px] font-semibold font-sans uppercase tracking-wider">{getGreeting()}</Text>
+            <Text className="text-foreground font-bold text-3xl font-sans tracking-tight mt-0.5">{user?.firstName ?? 'Neil Dime'}</Text>
           </View>
-          <View className="ml-4">
-            <Text className="text-gray-500 text-sm font-medium">Hello,</Text>
-            <Text className="text-white text-2xl font-bold">{user?.firstName ?? 'Neil!'}</Text>
+          <View className="w-12 h-12 rounded-full bg-card items-center justify-center overflow-hidden border border-border/50 shadow-sm">
+            {user?.imageUrl ? (
+              <Image source={{ uri: user.imageUrl }} className="w-full h-full" />
+            ) : (
+              <Icon as={User} size={24} className="text-muted-foreground" />
+            )}
           </View>
         </View>
 
-        {/* Main Action Card - Charcoal/Dark Background */}
-        <View className="bg-[#1A1A1A] p-6 rounded-[35px] mb-6 shadow-2xl border border-white/5">
-            <View className="mb-4">
-                <Text className="text-gray-500 text-[10px] uppercase font-bold tracking-widest mb-1">Current Activity</Text>
-                <Text className="text-white text-2xl font-black">{currentActivity}</Text>
-            </View>
+        {/* Main Action Card */}
+        <View className="bg-card p-6 rounded-[28px] mb-6 shadow-sm border border-border/50">
+          <View className="mb-4">
+            <Text className="text-muted-foreground text-[10px] uppercase font-bold tracking-widest mb-1 font-sans">Current Activity</Text>
+            <Text className="text-foreground text-2xl font-black font-sans tracking-tight">{currentActivity}</Text>
+          </View>
 
-            <View className="flex-row items-center mb-8">
-                <View className={`px-3 py-1 rounded-full border ${isActive ? 'bg-orange-500/20 border-orange-400' : 'bg-white/5 border-white/10'}`}>
-                    <Text className={`text-[10px] font-bold uppercase ${isActive ? 'text-orange-400' : 'text-gray-600'}`}>
-                        {isActive ? '● Session Active' : 'Waiting for Start'}
-                    </Text>
-                </View>
-                <View className="ml-auto items-end">
-                    <Text className="text-gray-500 text-[10px] uppercase font-bold text-right">Total Rendered</Text>
-                    <View className="flex-row items-baseline">
-                        <Text className="text-white text-2xl font-black">{totalHoursRendered}</Text>
-                        <Text className="text-gray-400 text-xs font-bold ml-1">hrs</Text>
-                    </View>
-                </View>
+          <View className="flex-row items-center mb-8">
+            <View className={`px-3 py-1 rounded-full border ${isActive ? 'bg-primary/10 border-primary/20' : 'bg-muted border-border/50'}`}>
+              <Text className={`text-[10px] font-bold uppercase font-sans tracking-wider ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
+                {isActive ? '● Session Active' : 'Waiting for Start'}
+              </Text>
             </View>
-            
-            <View className="flex-row gap-3">
-                {isActive && (
-                    <Button 
-                        variant="outline"
-                        className="flex-1 bg-white/5 border-white/10 rounded-2xl py-4" 
-                        onPress={handleBreak}
-                    >
-                        <Icon as={Coffee} size={20} className="text-white" />
-                    </Button>
-                )}
+            <View className="ml-auto items-end">
+              <Text className="text-muted-foreground text-[10px] uppercase font-bold text-right font-sans">Total Rendered</Text>
+              <View className="flex-row items-baseline">
+                <Text className="text-foreground text-2xl font-black font-sans tracking-tight">{totalHoursRendered}</Text>
+                <Text className="text-muted-foreground text-xs font-bold ml-1 font-sans">hrs</Text>
+              </View>
+            </View>
+          </View>
 
-                {!isActive ? (
-                    <Button 
-                        className="flex-[3] bg-[#7CFF67] rounded-2xl py-4" 
-                        onPress={() => setIsActive(true)}
-                    >
-                        <Icon as={Play} size={20} className="text-black mr-2" />
-                        <Text className="text-black font-black uppercase tracking-tight">Check In</Text>
-                    </Button>
-                ) : (
-                    <Button 
-                        className="flex-[3] bg-orange-600 rounded-2xl py-4" 
-                        onPress={() => router.push('/camera')}
-                    >
-                        <Icon as={Camera} size={20} className="text-white mr-2" />
-                        <Text className="text-white font-black uppercase tracking-tight">Check Out</Text>
-                    </Button>
-                )}
-            </View>
+          <View className="flex-row gap-3">
+            {isActive && (
+              <Button
+                variant="outline"
+                className="flex-1 bg-card border-border/50 rounded-[20px] py-4 shadow-sm"
+                onPress={handleBreak}
+              >
+                <Icon as={Coffee} size={20} className="text-foreground" />
+              </Button>
+            )}
+
+            {!isActive ? (
+              <Button
+                className="flex-[3] bg-primary rounded-[20px] py-4 shadow-sm"
+                onPress={() => setIsActive(true)}
+              >
+                <Icon as={Play} size={20} className="text-primary-foreground mr-2" />
+                <Text className="text-primary-foreground font-black uppercase tracking-tight font-sans">Check In</Text>
+              </Button>
+            ) : (
+              <Button
+                className="flex-[3] bg-destructive rounded-[20px] py-4 shadow-sm"
+                onPress={() => router.push('/camera')}
+              >
+                <Icon as={Camera} size={20} className="text-destructive-foreground mr-2" />
+                <Text className="text-destructive-foreground font-black uppercase tracking-tight font-sans">Check Out</Text>
+              </Button>
+            )}
+          </View>
         </View>
 
         {/* Recent Logs Section */}
-        <View className="flex-row justify-between items-end mb-5 px-2">
+        <View className="flex-row justify-between items-end mb-4 px-2">
           <View>
-             <Text className="text-white text-xl font-bold">Recent Logs</Text>
-             <Text className="text-gray-500 text-xs italic">Your latest sessions</Text>
+            <Text className="text-foreground text-xl font-bold font-sans tracking-tight">Recent Logs</Text>
+            <Text className="text-muted-foreground text-xs font-sans mt-0.5">Your latest sessions</Text>
           </View>
-          <Text className="text-gray-500 text-sm font-medium">History <ChevronRight size={14} /></Text>
+          <Text className="text-muted-foreground text-sm font-medium font-sans">History <ChevronRight size={14} /></Text>
         </View>
 
-        {completedActivities.map((activity) => (
-          <View key={activity.id} className="bg-[#1A1A1A]/60 border border-white/5 p-5 rounded-[30px] flex-row justify-between items-center mb-4">
-            <View className="flex-row items-center">
-              <View className="bg- p-3 rounded-2xl mr-4 border border-white/5">
-                <Icon as={Calendar} size={22} className="text-gray-500" />
+        <View className="bg-card rounded-2xl border border-border/50 overflow-hidden mb-4 shadow-sm">
+          {completedActivities.map((activity, index) => (
+            <View
+              key={activity.id}
+              className={`p-4 flex-row justify-between items-center ${index < completedActivities.length - 1 ? 'border-b border-border/30' : ''}`}
+            >
+              <View className="flex-row items-center">
+                <View className="bg-accent w-10 h-10 rounded-full items-center justify-center mr-3">
+                  <Icon as={Calendar} size={20} className="text-primary" />
+                </View>
+                <View>
+                  <Text className="text-foreground font-semibold text-[15px] font-sans">{activity.name}</Text>
+                  <Text className="text-muted-foreground text-xs font-sans mt-0.5">{activity.date}</Text>
+                </View>
               </View>
-              <View>
-                <Text className="text-white font-bold text-lg">{activity.name}</Text>
-                <Text className="text-gray-500 text-[10px] uppercase font-medium">{activity.date}</Text>
+              <View className="items-end">
+                <Text className="text-foreground font-bold text-[15px] font-sans">{activity.hours}h</Text>
+                <View className="bg-primary/10 mt-1 px-2 py-0.5 rounded-full">
+                  <Text className="text-primary text-[10px] font-bold uppercase font-sans">Finished</Text>
+                </View>
               </View>
             </View>
-            <View className="items-end">
-              <Text className="text-white font-black text-lg">{activity.hours}h</Text>
-              <View className="bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
-                <Text className="text-orange-600 text-[8px] font-bold uppercase">Finished</Text>
-              </View>
-            </View>
-          </View>
-        ))}
+          ))}
+        </View>
 
       </ScrollView>
     </SafeAreaView>
