@@ -1,14 +1,16 @@
 ﻿import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
-import { useUser } from '@clerk/clerk-expo';
+import { useUser, useAuth } from '@clerk/clerk-expo';
 import { Stack, useRouter } from 'expo-router';
-import { Calendar, Camera, Play, Coffee, User, ChevronRight } from 'lucide-react-native';
+import { Calendar, Camera, Play, Coffee, User, ChevronRight, LogOut } from 'lucide-react-native';
 import * as React from 'react';
-import { ScrollView, View, SafeAreaView, Alert, Image } from 'react-native';
+import { ScrollView, View, SafeAreaView, Alert, Image, Pressable } from 'react-native';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 export default function HomeScreen() {
   const { user } = useUser();
+  const { signOut } = useAuth();
   const router = useRouter();
   const [isActive, setIsActive] = React.useState(false);
 
@@ -44,6 +46,8 @@ export default function HomeScreen() {
     );
   };
 
+
+
   return (
     <SafeAreaView className="flex-1 bg-muted">
       <Stack.Screen options={{ headerShown: false }} />
@@ -59,13 +63,52 @@ export default function HomeScreen() {
             <Text className="text-muted-foreground text-[13px] font-semibold font-sans uppercase tracking-wider">{getGreeting()}</Text>
             <Text className="text-foreground font-bold text-3xl font-sans tracking-tight mt-0.5">{user?.firstName ?? 'Neil Dime'}</Text>
           </View>
-          <View className="w-12 h-12 rounded-full bg-card items-center justify-center overflow-hidden border border-border/50 shadow-sm">
-            {user?.imageUrl ? (
-              <Image source={{ uri: user.imageUrl }} className="w-full h-full" />
-            ) : (
-              <Icon as={User} size={24} className="text-muted-foreground" />
-            )}
-          </View>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Pressable
+                className="w-12 h-12 rounded-full bg-card items-center justify-center overflow-hidden border border-border/50 shadow-sm"
+              >
+                {user?.imageUrl ? (
+                  <Image source={{ uri: user.imageUrl }} className="w-full h-full" />
+                ) : (
+                  <Icon as={User} size={24} className="text-muted-foreground" />
+                )}
+              </Pressable>
+            </PopoverTrigger>
+            <PopoverContent align="end" sideOffset={8} className="w-64 p-0 bg-[#1C1C1E] border-border/10 rounded-2xl shadow-xl">
+              <View className="p-4 flex-row items-center border-b border-border/10">
+                <View className="w-10 h-10 rounded-full bg-card items-center justify-center overflow-hidden mr-3">
+                  {user?.imageUrl ? (
+                    <Image source={{ uri: user.imageUrl }} className="w-full h-full" />
+                  ) : (
+                    <Icon as={User} size={20} className="text-muted-foreground" />
+                  )}
+                </View>
+                <View className="flex-1">
+                  <Text className="text-white font-semibold font-sans">{user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Neil Dime'}</Text>
+                  <Text className="text-gray-400 text-xs font-sans mt-0.5" numberOfLines={1}>
+                    {user?.primaryEmailAddress?.emailAddress ?? 'neildime03@gmail.com'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* <Pressable
+                onPress={() => router.push('/account-details')}
+                className="flex-row items-center px-4 py-3.5 border-b border-border/10"
+              >
+                <Icon as={User} size={18} className="text-gray-300 mr-3" />
+                <Text className="text-white font-medium font-sans text-[15px]">Account</Text>
+              </Pressable> */}
+
+              <Pressable
+                onPress={() => signOut()}
+                className="flex-row items-center px-4 py-3.5 rounded-b-2xl"
+              >
+                <Icon as={LogOut} size={18} className="text-gray-300 mr-3" />
+                <Text className="text-white font-medium font-sans text-[15px]">Logout</Text>
+              </Pressable>
+            </PopoverContent>
+          </Popover>
         </View>
 
         {/* Main Action Card */}

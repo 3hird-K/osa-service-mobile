@@ -2,18 +2,17 @@
 import { View, ScrollView, Pressable, Image, Switch } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { Text } from '@/components/ui/text';
-import { User, HelpCircle, LogOut, ChevronRight, Pencil, QrCode, Moon, FileText, MessageCircleQuestion } from 'lucide-react-native';
+import { User, HelpCircle, ChevronRight, Pencil, QrCode, Moon, FileText, MessageCircleQuestion } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from 'nativewind';
-import { useAuth } from '@clerk/clerk-expo';
+
 import { THEME } from '@/lib/theme';
 
 export default function AccountScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const { colorScheme, toggleColorScheme } = useColorScheme();
-    const { signOut } = useAuth();
 
     return (
         <ScrollView
@@ -82,14 +81,7 @@ export default function AccountScreen() {
                     </View>
                 </View>
 
-                {/* Sign Out */}
-                <Pressable
-                    onPress={() => signOut()}
-                    className="bg-card rounded-xl border border-border/50 py-3.5 flex-row justify-center items-center"
-                >
-                    <Icon as={LogOut} className="text-destructive size-4 mr-2" />
-                    <Text className="text-destructive font-semibold text-[15px] font-sans">Sign Out</Text>
-                </Pressable>
+
             </View>
         </ScrollView>
     );
