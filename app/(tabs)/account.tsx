@@ -1,6 +1,6 @@
 ﻿import * as React from 'react';
 import { View, ScrollView, Pressable, Image, Switch } from 'react-native';
-import { Link, useRouter } from 'expo-router';
+import { Link, Stack, useRouter } from 'expo-router';
 import { Text } from '@/components/ui/text';
 import { User, HelpCircle, ChevronRight, Pencil, QrCode, Moon, FileText, MessageCircleQuestion } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
@@ -15,11 +15,13 @@ export default function AccountScreen() {
 
     return (
         <SafeAreaView className="flex-1 bg-muted" edges={['top']}>
+            <Stack.Screen options={{ headerShown: false }} />
             <ScrollView
-                className="flex-1 bg-muted"
+                contentContainerStyle={{ paddingBottom: 120 }}
+                className="pt-2 mt-2"
                 showsVerticalScrollIndicator={false}
             >
-                <View className="px-4 gap-y-8" style={{ paddingTop: 16, paddingBottom: 100 }}>
+                <View className="px-4 gap-y-8">
 
                     {/* Header */}
                     <View className="flex-row items-center justify-between px-1">
