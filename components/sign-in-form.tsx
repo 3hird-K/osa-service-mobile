@@ -7,6 +7,7 @@ import { Link } from 'expo-router';
 import * as React from 'react';
 import { type TextInput, View, Pressable } from 'react-native';
 import { Eye, EyeOff } from 'lucide-react-native';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export function SignInForm() {
   const { signIn, setActive, isLoaded } = useSignIn();
@@ -17,9 +18,14 @@ export function SignInForm() {
   const [code, setCode] = React.useState('');
   const passwordInputRef = React.useRef<TextInput>(null);
   const [error, setError] = React.useState<{ email?: string; password?: string; code?: string }>({});
+  const { isOnline } = useNetworkStatus();
 
   async function onSubmit() {
     if (!isLoaded) return;
+    if (!isOnline) {
+      setError({ email: 'You are offline. Please check your connection and try again.' });
+      return;
+    }
     try {
       const signInAttempt = await signIn.create({ identifier, password });
       if (signInAttempt.status === 'complete') {
@@ -57,6 +63,10 @@ export function SignInForm() {
 
   async function onVerify2FA() {
     if (!isLoaded) return;
+    if (!isOnline) {
+      setError({ code: 'You are offline. Please check your connection and try again.' });
+      return;
+    }
     try {
       const result = await signIn.attemptSecondFactor({ strategy: 'email_code', code });
       if (result.status === 'complete') {

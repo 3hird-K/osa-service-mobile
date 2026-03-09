@@ -7,17 +7,44 @@ import { Icon } from '@/components/ui/icon';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from 'nativewind';
 import { useUser } from '@clerk/clerk-expo';
-
 import { THEME } from '@/lib/theme';
+import { loadCache, saveCache } from '@/hooks/useOfflineStorage';
+
+const PROFILE_CACHE_KEY = 'cache:user_profile';
+type CachedProfile = { fullName: string; email: string; imageUrl: string | null };
 
 export default function AccountScreen() {
     const router = useRouter();
     const { colorScheme, toggleColorScheme } = useColorScheme();
     const { user } = useUser();
+    const [cachedProfile, setCachedProfile] = React.useState<CachedProfile | null>(null);
 
-    const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'No name';
-    const email = user?.primaryEmailAddress?.emailAddress ?? '';
-    const imageUrl = user?.imageUrl;
+    const liveName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || null;
+    const liveEmail = user?.primaryEmailAddress?.emailAddress ?? null;
+    const liveImageUrl = user?.imageUrl ?? null;
+
+    // Save to cache whenever live data is available
+    React.useEffect(() => {
+        if (liveName || liveEmail) {
+            const profile: CachedProfile = {
+                fullName: liveName ?? cachedProfile?.fullName ?? 'No name',
+                email: liveEmail ?? cachedProfile?.email ?? '',
+                imageUrl: liveImageUrl,
+            };
+            saveCache(PROFILE_CACHE_KEY, profile);
+        }
+    }, [liveName, liveEmail, liveImageUrl]);
+
+    // Load cache on mount for offline fallback
+    React.useEffect(() => {
+        loadCache<CachedProfile>(PROFILE_CACHE_KEY).then((p) => {
+            if (p) setCachedProfile(p);
+        });
+    }, []);
+
+    const fullName = liveName ?? cachedProfile?.fullName ?? 'No name';
+    const email = liveEmail ?? cachedProfile?.email ?? '';
+    const imageUrl = liveImageUrl ?? cachedProfile?.imageUrl ?? null;
 
     return (
         <SafeAreaView className="flex-1 bg-muted" edges={['top']}>

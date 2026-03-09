@@ -1,4 +1,4 @@
-﻿import * as React from 'react';
+import * as React from 'react';
 import { View, ScrollView, TouchableOpacity, RefreshControl, Pressable } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
@@ -12,6 +12,9 @@ import Animated, {
     FadeOut,
     FadeInDown,
 } from 'react-native-reanimated';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { loadCache, saveCache } from '@/hooks/useOfflineStorage';
+import { toast } from 'sonner-native';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -50,6 +53,27 @@ const INITIAL_NOTIFICATIONS: Notification[] = [
         unread: false,
     },
 ];
+
+// Serialisable version of a notification (icon stored as a key string)
+type StoredNotification = Omit<Notification, 'icon'> & { iconKey: string };
+
+const ICON_MAP: Record<string, LucideIcon> = {
+    ShieldCheck,
+    Sparkles,
+    Bell,
+};
+
+const CACHE_KEY = 'cache:notifications';
+
+function toStored(n: Notification): StoredNotification {
+    // Find the matching key
+    const iconKey = Object.entries(ICON_MAP).find(([, v]) => v === n.icon)?.[0] ?? 'Bell';
+    return { ...n, iconKey };
+}
+
+function fromStored(s: StoredNotification): Notification {
+    return { ...s, icon: ICON_MAP[s.iconKey] ?? Bell };
+}
 
 // ─── Notification Row ────────────────────────────────────────────────
 // Theme-aware action colors
@@ -166,13 +190,28 @@ export default function NotificationsScreen() {
     const [isLoading, setIsLoading] = React.useState(true);
     const [confirmClear, setConfirmClear] = React.useState(false);
     const clearTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const { isOnline } = useNetworkStatus();
 
+    // Restore from cache on mount
     React.useEffect(() => {
-        setTimeout(() => setIsLoading(false), 1500);
+        (async () => {
+            const cached = await loadCache<StoredNotification[]>(CACHE_KEY);
+            if (cached) {
+                setNotifications(cached.map(fromStored));
+            }
+            setIsLoading(false);
+        })();
         return () => {
             if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
         };
     }, []);
+
+    // Persist whenever notification list changes (after initial load)
+    const isFirstRender = React.useRef(true);
+    React.useEffect(() => {
+        if (isFirstRender.current) { isFirstRender.current = false; return; }
+        saveCache(CACHE_KEY, notifications.map(toStored));
+    }, [notifications]);
 
     const unreadCount = notifications.filter((n) => n.unread).length;
 
@@ -205,9 +244,15 @@ export default function NotificationsScreen() {
     };
 
     const onRefresh = () => {
+        if (!isOnline) {
+            setRefreshing(false);
+            toast.error('No internet connection', { description: 'Showing cached notifications.' });
+            return;
+        }
         setRefreshing(true);
         setTimeout(() => {
             setNotifications(INITIAL_NOTIFICATIONS);
+            saveCache(CACHE_KEY, INITIAL_NOTIFICATIONS.map(toStored));
             setRefreshing(false);
         }, 1000);
     };

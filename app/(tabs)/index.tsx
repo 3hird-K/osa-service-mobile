@@ -1,38 +1,92 @@
-﻿import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { AlertDialog } from '@/components/ui/alert-dialog';
 import { useUser, useAuth } from '@clerk/clerk-expo';
 import { Stack, useRouter } from 'expo-router';
-import { Calendar, Camera, Play, Coffee, User, ChevronRight, LogOut } from 'lucide-react-native';
+import { Calendar, Camera, Play, Coffee, User, ChevronRight, LogOut, WifiOff } from 'lucide-react-native';
 import * as React from 'react';
 import { ScrollView, View, Image, Pressable, RefreshControl } from 'react-native';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { loadCache, saveCache } from '@/hooks/useOfflineStorage';
+
+type Activity = { id: string; name: string; hours: number; date: string };
+
+const CACHE_KEY = 'cache:home_activities';
+
+// Default mock data (also used as the first write to cache)
+const MOCK_ACTIVITIES: Activity[] = [
+  { id: '1', name: 'Cafeteria', hours: 2, date: 'March 07, 2026' },
+  { id: '2', name: 'Fitness Gym', hours: 1.5, date: 'March 06, 2026' },
+  { id: '3', name: 'Library Assistance', hours: 2, date: 'March 05, 2026' },
+  { id: '4', name: 'Cafeteria', hours: 2, date: 'March 04, 2026' },
+  { id: '5', name: 'Fitness Gym', hours: 1.5, date: 'March 03, 2026' },
+  { id: '6', name: 'Library Assistance', hours: 2, date: 'March 02, 2026' },
+];
 
 export default function HomeScreen() {
   const { user } = useUser();
   const { signOut } = useAuth();
   const router = useRouter();
+  const { isOnline } = useNetworkStatus();
   const [isActive, setIsActive] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
+  const [completedActivities, setCompletedActivities] = React.useState<Activity[]>([]);
+  const [fromCache, setFromCache] = React.useState(false);
+
+  const fetchActivities = React.useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setIsLoading(true);
+
+    if (!isOnline) {
+      // Offline: try to restore from cache
+      const cached = await loadCache<Activity[]>(CACHE_KEY);
+      if (cached) {
+        setCompletedActivities(cached);
+        setFromCache(true);
+      } else {
+        // No cache yet, show mock data
+        setCompletedActivities(MOCK_ACTIVITIES);
+        setFromCache(true);
+      }
+      setIsLoading(false);
+      if (isRefresh) setRefreshing(false);
+      return;
+    }
+
+    // Online: simulate fetch then cache result
+    await new Promise((r) => setTimeout(r, 1500));
+    setCompletedActivities(MOCK_ACTIVITIES);
+    setFromCache(false);
+    await saveCache(CACHE_KEY, MOCK_ACTIVITIES);
+    setIsLoading(false);
+    if (isRefresh) setRefreshing(false);
+  }, [isOnline]);
 
   React.useEffect(() => {
-    // Simulate initial fetch
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1500);
+    // On mount: try cache first, then fetch
+    (async () => {
+      const cached = await loadCache<Activity[]>(CACHE_KEY);
+      if (cached) {
+        setCompletedActivities(cached);
+        setFromCache(!isOnline);
+        setIsLoading(false);
+        // Still refresh in background if online
+        if (isOnline) fetchActivities();
+      } else {
+        fetchActivities();
+      }
+    })();
   }, []);
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
-    // Simulate refresh fetch
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1500);
-  }, []);
+    fetchActivities(true);
+  }, [fetchActivities]);
+
 
   const currentActivity = "Library Assistance";
 
@@ -43,25 +97,12 @@ export default function HomeScreen() {
     return 'Good Evening,';
   };
 
-  // Data for the 2 completed activities
-  const completedActivities = [
-    { id: '1', name: 'Cafeteria', hours: 2, date: 'March 07, 2026' },
-    { id: '2', name: 'Fitness Gym', hours: 1.5, date: 'March 06, 2026' },
-    { id: '3', name: 'Library Assistance', hours: 2, date: 'March 05, 2026' },
-    { id: '4', name: 'Cafeteria', hours: 2, date: 'March 04, 2026' },
-    { id: '5', name: 'Fitness Gym', hours: 1.5, date: 'March 03, 2026' },
-    { id: '6', name: 'Library Assistance', hours: 2, date: 'March 02, 2026' },
-  ];
-
   const totalHoursRendered = completedActivities.reduce((acc, curr) => acc + curr.hours, 0);
   const [breakDialog, setBreakDialog] = React.useState(false);
 
   const handleBreak = () => {
     setBreakDialog(true);
   };
-
-
-
   return (
     <SafeAreaView className="flex-1 bg-muted" edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -185,7 +226,15 @@ export default function HomeScreen() {
         {/* Recent Logs Section */}
         <View className="flex-row justify-between items-end mb-4 px-2">
           <View>
-            <Text className="text-foreground text-xl font-bold font-sans tracking-tight">Recent Logs</Text>
+            <View className="flex-row items-center gap-x-2">
+              <Text className="text-foreground text-xl font-bold font-sans tracking-tight">Recent Logs</Text>
+              {fromCache && (
+                <View className="flex-row items-center gap-x-1 bg-amber-500/10 px-2 py-0.5 rounded-full">
+                  <Icon as={WifiOff} size={10} className="text-amber-600" />
+                  <Text className="text-amber-600 text-[10px] font-bold font-sans uppercase">Cached</Text>
+                </View>
+              )}
+            </View>
             <Text className="text-muted-foreground text-xs font-sans mt-0.5">Your latest sessions</Text>
           </View>
           <Text className="text-muted-foreground text-sm font-medium font-sans">History <ChevronRight size={14} /></Text>
