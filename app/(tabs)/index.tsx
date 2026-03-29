@@ -6,26 +6,80 @@ import { useUser, useAuth } from '@clerk/clerk-expo';
 import { Stack, useRouter } from 'expo-router';
 import { Calendar, Camera, Play, Coffee, User, ChevronRight, LogOut, WifiOff } from 'lucide-react-native';
 import * as React from 'react';
-import { ScrollView, View, Image, Pressable, RefreshControl } from 'react-native';
+import { ScrollView, View, Image, Pressable, RefreshControl, Modal } from 'react-native';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { loadCache, saveCache } from '@/hooks/useOfflineStorage';
 
-type Activity = { id: string; name: string; hours: number; date: string };
+type Activity = {
+  id: string;
+  name: string;
+  hours: number;
+  date: string;
+  description: string;
+};
 
 const CACHE_KEY = 'cache:home_activities';
 
 // Default mock data (also used as the first write to cache)
 const MOCK_ACTIVITIES: Activity[] = [
-  { id: '1', name: 'Cafeteria', hours: 2, date: 'March 07, 2026' },
-  { id: '2', name: 'Fitness Gym', hours: 1.5, date: 'March 06, 2026' },
-  { id: '3', name: 'Library Assistance', hours: 2, date: 'March 05, 2026' },
-  { id: '4', name: 'Cafeteria', hours: 2, date: 'March 04, 2026' },
-  { id: '5', name: 'Fitness Gym', hours: 1.5, date: 'March 03, 2026' },
-  { id: '6', name: 'Library Assistance', hours: 2, date: 'March 02, 2026' },
+  {
+    id: '1',
+    name: 'Cafeteria',
+    hours: 2,
+    date: 'March 07, 2026',
+    description: 'Prepared stations for lunch rush and helped restock utensils during peak hours.',
+  },
+  {
+    id: '2',
+    name: 'Fitness Gym',
+    hours: 1.5,
+    date: 'March 06, 2026',
+    description: 'Assisted with equipment checks and guided members through machine sanitation flow.',
+  },
+  {
+    id: '3',
+    name: 'Library Assistance',
+    hours: 2,
+    date: 'March 05, 2026',
+    description: 'Supported shelving tasks, desk inquiries, and catalog updates in Building 23 - 3rd Floor.',
+  },
+  {
+    id: '4',
+    name: 'Cafeteria',
+    hours: 2,
+    date: 'March 04, 2026',
+    description: 'Managed serving line organization and logged end-of-shift inventory counts.',
+  },
+  {
+    id: '5',
+    name: 'Fitness Gym',
+    hours: 1.5,
+    date: 'March 03, 2026',
+    description: 'Monitored check-ins and assisted with floor clean-up and weight area arrangement.',
+  },
+  {
+    id: '6',
+    name: 'Library Assistance',
+    hours: 2,
+    date: 'March 02, 2026',
+    description: 'Handled circulation desk support and directed students to reserved study sections.',
+  },
 ];
+
+const formatDuration = (totalSeconds: number) => {
+  const hrs = Math.floor(totalSeconds / 3600)
+    .toString()
+    .padStart(2, '0');
+  const mins = Math.floor((totalSeconds % 3600) / 60)
+    .toString()
+    .padStart(2, '0');
+  const secs = (totalSeconds % 60).toString().padStart(2, '0');
+  return `${hrs}:${mins}:${secs}`;
+};
 
 export default function HomeScreen() {
   const { user } = useUser();
@@ -37,6 +91,14 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = React.useState(false);
   const [completedActivities, setCompletedActivities] = React.useState<Activity[]>([]);
   const [fromCache, setFromCache] = React.useState(false);
+  const [sessionStartedAt, setSessionStartedAt] = React.useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = React.useState(0);
+  const [proofImages, setProofImages] = React.useState<string[]>([]);
+  const [isTakingProof, setIsTakingProof] = React.useState(false);
+  const [permissionDialog, setPermissionDialog] = React.useState(false);
+  const [showAllProofs, setShowAllProofs] = React.useState(false);
+  const [selectedActivity, setSelectedActivity] = React.useState<Activity | null>(null);
+  const [logDetailsDialog, setLogDetailsDialog] = React.useState(false);
 
   const fetchActivities = React.useCallback(async (isRefresh = false) => {
     if (!isRefresh) setIsLoading(true);
@@ -82,6 +144,20 @@ export default function HomeScreen() {
     })();
   }, []);
 
+  React.useEffect(() => {
+    if (!isActive || !sessionStartedAt) {
+      setElapsedSeconds(0);
+      return;
+    }
+
+    setElapsedSeconds(Math.floor((Date.now() - sessionStartedAt) / 1000));
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - sessionStartedAt) / 1000));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isActive, sessionStartedAt]);
+
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
     fetchActivities(true);
@@ -100,9 +176,53 @@ export default function HomeScreen() {
   const totalHoursRendered = completedActivities.reduce((acc, curr) => acc + curr.hours, 0);
   const [breakDialog, setBreakDialog] = React.useState(false);
 
+  const handleCheckIn = () => {
+    setIsActive(true);
+    setSessionStartedAt(Date.now());
+    setProofImages([]);
+  };
+
+  const handleSessionStop = () => {
+    setIsActive(false);
+    setSessionStartedAt(null);
+    setElapsedSeconds(0);
+  };
+
   const handleBreak = () => {
     setBreakDialog(true);
   };
+
+  const handleCaptureProof = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      setPermissionDialog(true);
+      return;
+    }
+
+    setIsTakingProof(true);
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.7,
+      });
+
+      if (!result.canceled && result.assets[0]?.uri) {
+        setProofImages((prev) => [result.assets[0].uri, ...prev].slice(0, 6));
+      }
+    } finally {
+      setIsTakingProof(false);
+    }
+  };
+
+  const openLogDetails = (activity: Activity) => {
+    setSelectedActivity(activity);
+    setLogDetailsDialog(true);
+  };
+
+  const previewProofImages = proofImages.slice(0, 3);
+  const hiddenProofCount = Math.max(proofImages.length - 3, 0);
+
   return (
     <SafeAreaView className="flex-1 bg-muted" edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -115,9 +235,11 @@ export default function HomeScreen() {
       >
         {/* Header Section */}
         <View className="flex-row items-center justify-between mb-8 mt-2 px-1">
-          <View>
+          <View className="flex-1 pr-3">
             <Text className="text-muted-foreground text-[13px] font-semibold font-sans uppercase tracking-wider">{getGreeting()}</Text>
-            <Text className="text-foreground font-bold text-3xl font-sans tracking-tight mt-0.5">{user?.username ?? 'Neil Dime'}</Text>
+            <Text className="text-foreground font-bold text-3xl font-sans tracking-tight mt-0.5" numberOfLines={1}>
+              {user?.username ?? 'Neil Dime'}
+            </Text>
           </View>
           <Popover>
             <PopoverTrigger asChild>
@@ -172,7 +294,11 @@ export default function HomeScreen() {
             <>
               <View className="mb-4">
                 <Text className="text-muted-foreground text-[10px] uppercase font-bold tracking-widest mb-1 font-sans">Current Activity</Text>
-                <Text className="text-foreground text-2xl font-black font-sans tracking-tight">{currentActivity}</Text>
+                <Text className="text-foreground text-2xl font-black font-sans tracking-tight" numberOfLines={1}>
+                  {currentActivity}
+                </Text>
+                <Text className="text-muted-foreground text-xs font-sans mt-0.5">Started: {sessionStartedAt ? new Date(sessionStartedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Not checked in'}</Text>
+                <Text className="text-muted-foreground">Building 23 - 3rd Floor</Text>
               </View>
 
               <View className="flex-row items-center mb-8">
@@ -182,43 +308,108 @@ export default function HomeScreen() {
                   </Text>
                 </View>
                 <View className="ml-auto items-end">
-                  <Text className="text-muted-foreground text-[10px] uppercase font-bold text-right font-sans">Total Rendered</Text>
+                  <Text className="text-muted-foreground text-[10px] uppercase font-bold text-right font-sans">
+                    {isActive ? 'Live Timer' : 'Total Rendered'}
+                  </Text>
                   <View className="flex-row items-baseline">
-                    <Text className="text-foreground text-2xl font-black font-sans tracking-tight">{totalHoursRendered}</Text>
-                    <Text className="text-muted-foreground text-xs font-bold ml-1 font-sans">hrs</Text>
+                    <Text className="text-foreground text-2xl font-black font-sans tracking-tight">
+                      {isActive ? formatDuration(elapsedSeconds) : totalHoursRendered}
+                    </Text>
+                    {!isActive && <Text className="text-muted-foreground text-xs font-bold ml-1 font-sans">hrs</Text>}
                   </View>
                 </View>
               </View>
 
-              <View className="flex-row gap-3">
-                {isActive && (
-                  <Button
-                    variant="outline"
-                    className="flex-1 bg-card border-border/50 rounded-[20px] py-4 shadow-sm"
-                    onPress={handleBreak}
-                  >
-                    <Icon as={Coffee} size={20} className="text-foreground" />
-                  </Button>
-                )}
+              {isActive && (
+                <View className="mb-6">
+                  <View className="flex-row items-center justify-between mb-2">
+                    <Text className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider font-sans">Proof Captures</Text>
+                    <Text className="text-muted-foreground text-[11px] font-semibold font-sans">{proofImages.length} image{proofImages.length === 1 ? '' : 's'}</Text>
+                  </View>
 
-                {!isActive ? (
+                  {proofImages.length === 0 ? (
+                    <View className="rounded-xl border border-dashed border-border/60 px-3 py-3 bg-muted/40">
+                      <Text className="text-muted-foreground text-xs font-sans">No proof image yet. Capture one while the session is active.</Text>
+                    </View>
+                  ) : (
+                    <View className="flex-row">
+                      {previewProofImages.map((uri, index) => {
+                        const isOverflowTile = index === 2 && hiddenProofCount > 0;
+
+                        if (isOverflowTile) {
+                          return (
+                            <Pressable
+                              key={`${uri}-${index}`}
+                              onPress={() => setShowAllProofs(true)}
+                              className="w-16 h-16 rounded-lg mr-2 overflow-hidden border border-border/50"
+                            >
+                              <Image source={{ uri }} className="w-full h-full" />
+                              <View className="absolute inset-0 bg-black/55 items-center justify-center">
+                                <Text className="text-white font-black text-sm font-sans">+{hiddenProofCount}</Text>
+                              </View>
+                            </Pressable>
+                          );
+                        }
+
+                        return (
+                          <Image
+                            key={`${uri}-${index}`}
+                            source={{ uri }}
+                            className="w-16 h-16 rounded-lg mr-2 border border-border/50"
+                          />
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {!isActive ? (
+                <View className="flex-row gap-3">
                   <Button
-                    className="flex-[3] bg-primary rounded-[20px] py-4 shadow-sm"
-                    onPress={() => setIsActive(true)}
+                    className="flex-1 bg-primary rounded-[20px] py-4 shadow-sm"
+                    onPress={handleCheckIn}
                   >
                     <Icon as={Play} size={20} className="text-primary-foreground mr-2" />
                     <Text className="text-primary-foreground font-black uppercase tracking-tight font-sans">Check In</Text>
                   </Button>
-                ) : (
+                </View>
+              ) : (
+                <View className="gap-3">
+                  <View className="flex-row gap-3">
+                    <Button
+                      variant="outline"
+                      className="w-14 bg-card border-border/50 rounded-[18px] py-4 shadow-sm"
+                      onPress={handleBreak}
+                    >
+                      <Icon as={Coffee} size={20} className="text-foreground" />
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      className="flex-1 bg-card border-border/50 rounded-[18px] py-4 shadow-sm"
+                      onPress={handleCaptureProof}
+                      disabled={isTakingProof}
+                    >
+                      <Icon as={Camera} size={18} className="text-foreground mr-2" />
+                      <Text className="text-foreground font-bold uppercase tracking-tight font-sans text-[13px]" numberOfLines={1}>
+                        {isTakingProof ? 'Opening Camera...' : 'Capture Proof'}
+                      </Text>
+                    </Button>
+                  </View>
+
                   <Button
-                    className="flex-[3] bg-destructive rounded-[20px] py-4 shadow-sm"
-                    onPress={() => router.push('/camera')}
+                    className="bg-destructive rounded-[18px] py-4 shadow-sm"
+                    onPress={() => {
+                      handleSessionStop();
+                      router.push('/camera');
+                    }}
                   >
                     <Icon as={Camera} size={20} className="text-destructive-foreground mr-2" />
                     <Text className="text-destructive-foreground font-black uppercase tracking-tight font-sans">Check Out</Text>
                   </Button>
-                )}
-              </View>
+                </View>
+              )}
             </>
           )}
         </View>
@@ -259,8 +450,9 @@ export default function HomeScreen() {
             </View>
           ) : (
             completedActivities.map((activity, index) => (
-              <View
+              <Pressable
                 key={activity.id}
+                onPress={() => openLogDetails(activity)}
                 className={`p-4 flex-row justify-between items-center ${index < completedActivities.length - 1 ? 'border-b border-border/30' : ''}`}
               >
                 <View className="flex-row items-center">
@@ -278,12 +470,42 @@ export default function HomeScreen() {
                     <Text className="text-primary text-[10px] font-bold uppercase font-sans">Finished</Text>
                   </View>
                 </View>
-              </View>
+              </Pressable>
             ))
           )}
         </View>
 
       </ScrollView>
+
+      <Modal visible={showAllProofs} transparent animationType="fade" onRequestClose={() => setShowAllProofs(false)}>
+        <View className="flex-1 bg-black/55 justify-end">
+          <Pressable className="absolute inset-0" onPress={() => setShowAllProofs(false)} />
+          <View className="bg-card rounded-t-3xl px-5 pt-5 pb-6 max-h-[75%] border border-border/30">
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-foreground text-lg font-black font-sans">All Proof Images</Text>
+              <Pressable
+                onPress={() => setShowAllProofs(false)}
+                className="px-3 py-1.5 rounded-full bg-muted"
+              >
+                <Text className="text-muted-foreground text-xs font-bold uppercase font-sans">Close</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
+              <View className="flex-row flex-wrap justify-between gap-y-3">
+                {proofImages.map((uri, index) => (
+                  <Image
+                    key={`${uri}-full-${index}`}
+                    source={{ uri }}
+                    className="h-40 rounded-xl border border-border/50"
+                    style={{ width: '48.5%' }}
+                  />
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       <AlertDialog
         visible={breakDialog}
@@ -292,8 +514,28 @@ export default function HomeScreen() {
         message="Your current progress will be saved."
         actions={[
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Confirm Break', style: 'destructive', onPress: () => setIsActive(false) },
+          { text: 'Confirm Break', style: 'destructive', onPress: handleSessionStop },
         ]}
+      />
+
+      <AlertDialog
+        visible={permissionDialog}
+        onClose={() => setPermissionDialog(false)}
+        title="Camera Permission Required"
+        message="Please allow camera access so you can capture proof images during your active session."
+        actions={[{ text: 'OK', style: 'default' }]}
+      />
+
+      <AlertDialog
+        visible={logDetailsDialog}
+        onClose={() => setLogDetailsDialog(false)}
+        title={selectedActivity?.name ?? 'Log Details'}
+        message={
+          selectedActivity
+            ? `${selectedActivity.date}\nRendered: ${selectedActivity.hours}h\n\n${selectedActivity.description}`
+            : 'No details available.'
+        }
+        actions={[{ text: 'Close', style: 'default' }]}
       />
     </SafeAreaView>
   );
