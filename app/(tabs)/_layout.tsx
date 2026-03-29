@@ -259,6 +259,7 @@ const styles = StyleSheet.create({
 export default function TabLayout() {
     return (
         <Tabs
+            initialRouteName="index"
             tabBar={(props) => <FloatingCircleTabBar {...props} />}
             screenOptions={{ headerShown: false }}
         >
