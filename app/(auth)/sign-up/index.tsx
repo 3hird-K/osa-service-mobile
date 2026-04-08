@@ -1,6 +1,5 @@
 ﻿import { SignUpForm } from '@/components/sign-up-form';
-import * as React from 'react';
-import { View, Pressable, Image, Platform } from 'react-native';
+import { View, Pressable, Image } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Text } from '@/components/ui/text';
 import { Link } from 'expo-router';
@@ -44,6 +43,6 @@ export default function SignUpScreen() {
           </Pressable>
         </Link>
       </View>
-    </KeyboardAwareScrollView >
+    </KeyboardAwareScrollView>
   );
 }
