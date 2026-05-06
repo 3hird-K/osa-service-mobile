@@ -10,7 +10,7 @@ import { PortalHost } from '@rn-primitives/portal';
 import { Toaster } from 'sonner-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { OfflineBanner } from '@/components/OfflineBanner';
-import { Stack } from 'expo-router';
+import { Stack, Slot, useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'nativewind';
@@ -19,11 +19,7 @@ import { useFonts } from 'expo-font';
 import { PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold } from '@expo-google-fonts/plus-jakarta-sans';
 import { Lora_400Regular } from '@expo-google-fonts/lora';
 import { IBMPlexMono_400Regular } from '@expo-google-fonts/ibm-plex-mono';
-
-// Force light mode at module level before any component renders (not available on web)
-// if (Platform.OS !== 'web' && typeof Appearance?.setColorScheme === 'function') {
-//   Appearance.setColorScheme('light');
-// }
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
@@ -33,12 +29,14 @@ if (!publishableKey) {
   );
 }
 
+SplashScreen.preventAutoHideAsync();
+
 export {
   ErrorBoundary,
 } from 'expo-router';
 
 export default function RootLayout() {
-  const { colorScheme, setColorScheme } = useColorScheme();
+  const { colorScheme } = useColorScheme();
 
   const [fontsLoaded] = useFonts({
     'Plus Jakarta Sans': PlusJakartaSans_400Regular,
@@ -49,10 +47,11 @@ export default function RootLayout() {
     'IBM Plex Mono': IBMPlexMono_400Regular,
   });
 
-  // Force light mode on mount disabled to allow dynamic toggle.
-  // React.useLayoutEffect(() => {
-  //   setColorScheme('light');
-  // }, []);
+  React.useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
 
   if (!fontsLoaded) {
     return null;
@@ -60,59 +59,55 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <OfflineBanner />
-      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-        <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
-          <StatusBar
-            style={colorScheme === 'dark' ? 'light' : 'dark'}
-          />
-          <Routes />
-          <Toaster position="top-center" />
-          <PortalHost />
-        </ThemeProvider>
-      </ClerkProvider>
+      <SafeAreaProvider>
+        <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+          <RootLayoutNav colorScheme={colorScheme} />
+        </ClerkProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
 
-SplashScreen.preventAutoHideAsync();
-
-function Routes() {
+function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | undefined }) {
   const { isSignedIn, isLoaded } = useAuth();
-
-  React.useEffect(() => {
-    if (isLoaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [isLoaded]);
 
   if (!isLoaded) {
     return null;
   }
 
   return (
-    <Stack>
-      {/* Screens only shown when the user is NOT signed in */}
-      <Stack.Protected guard={!isSignedIn}>
-        <Stack.Screen name="(auth)/sign-in" options={SIGN_IN_SCREEN_OPTIONS} />
-        <Stack.Screen name="(auth)/sign-up" options={SIGN_UP_SCREEN_OPTIONS} />
-        <Stack.Screen name="(auth)/reset-password" options={SIGN_IN_SCREEN_OPTIONS} />
-        <Stack.Screen name="(auth)/forgot-password" options={SIGN_IN_SCREEN_OPTIONS} />
-      </Stack.Protected>
+    <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
+      <OfflineBanner />
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      
+      {/* 🛠️ Conditional Stack: Automatically switches between auth and app screens */}
+      <Stack screenOptions={{ headerShown: false }}>
+        {!isSignedIn ? (
+          // Auth Screens (Only available when logged out)
+          <>
+            <Stack.Screen name="(auth)/sign-in" options={SIGN_IN_SCREEN_OPTIONS} />
+            <Stack.Screen name="(auth)/sign-up" options={SIGN_UP_SCREEN_OPTIONS} />
+            <Stack.Screen name="(auth)/reset-password" options={SIGN_IN_SCREEN_OPTIONS} />
+            <Stack.Screen name="(auth)/forgot-password" options={SIGN_IN_SCREEN_OPTIONS} />
+          </>
+        ) : (
+          // App Screens (Only available when logged in)
+          <>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="edit-profile" options={{ headerShown: false, presentation: 'modal' }} />
+            <Stack.Screen name="account-details" options={{ headerShown: false, presentation: 'modal' }} />
+            <Stack.Screen name="faq" options={{ headerShown: false, presentation: 'modal' }} />
+            <Stack.Screen name="help-support" options={{ headerShown: false, presentation: 'modal' }} />
+            <Stack.Screen name="qr-code" options={{ headerShown: false, presentation: 'modal' }} />
+            <Stack.Screen name="terms-conditions" options={{ headerShown: false, presentation: 'modal' }} />
+            <Stack.Screen name="camera" options={{ headerShown: false, presentation: 'modal' }} />
+          </>
+        )}
+      </Stack>
 
-      {/* Screens only shown when the user IS signed in */}
-      <Stack.Protected guard={isSignedIn}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="edit-profile" options={{ headerShown: false, presentation: 'modal' }} />
-        <Stack.Screen name="account-details" options={{ headerShown: false, presentation: 'modal' }} />
-        <Stack.Screen name="faq" options={{ headerShown: false, presentation: 'modal' }} />
-        <Stack.Screen name="help-support" options={{ headerShown: false, presentation: 'modal' }} />
-        <Stack.Screen name="qr-code" options={{ headerShown: false, presentation: 'modal' }} />
-        <Stack.Screen name="terms-conditions" options={{ headerShown: false, presentation: 'modal' }} />
-        <Stack.Screen name="camera" options={{ headerShown: false, presentation: 'modal' }} />
-      </Stack.Protected>
-
-    </Stack>
+      <Toaster position="top-center" />
+      <PortalHost />
+    </ThemeProvider>
   );
 }
 
@@ -128,9 +123,3 @@ const SIGN_UP_SCREEN_OPTIONS = {
   headerTransparent: true,
   gestureEnabled: false,
 } as const;
-
-const DEFAULT_AUTH_SCREEN_OPTIONS = {
-  title: '',
-  headerShadowVisible: false,
-  headerTransparent: true,
-};

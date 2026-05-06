@@ -2,7 +2,7 @@ import * as React from 'react';
 import { View, ScrollView, TouchableOpacity, RefreshControl, Pressable } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
-import { Bell, CheckCheck, ShieldCheck, Sparkles, Trash2, X, type LucideIcon } from 'lucide-react-native';
+import { Bell, CheckCheck, ShieldCheck, Sparkles, Trash2, X, ChevronLeft, type LucideIcon } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useColorScheme } from 'nativewind';
@@ -15,6 +15,7 @@ import Animated, {
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { loadCache, saveCache } from '@/hooks/useOfflineStorage';
 import { toast } from 'sonner-native';
+import { Stack, useRouter } from 'expo-router';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -185,6 +186,7 @@ function NotificationRow({
 
 // ─── Main Screen ─────────────────────────────────────────────────────
 export default function NotificationsScreen() {
+    const router = useRouter();
     const [notifications, setNotifications] = React.useState(INITIAL_NOTIFICATIONS);
     const [refreshing, setRefreshing] = React.useState(false);
     const [isLoading, setIsLoading] = React.useState(true);
@@ -259,15 +261,24 @@ export default function NotificationsScreen() {
 
     return (
         <SafeAreaView className="flex-1 bg-muted" edges={['top']}>
+            <Stack.Screen options={{ headerShown: false }} />
             {/* HEADER */}
-            <View className="px-5 py-4 flex-row justify-between items-center">
-                <View>
-                    <Text className="text-foreground font-bold text-3xl font-sans tracking-tight">
-                        Notifications
-                    </Text>
-                    <Text className="text-sm text-muted-foreground">
-                        {unreadCount} unread
-                    </Text>
+            <View className="px-5 py-4 flex-row justify-between items-start">
+                <View className="flex-row items-start gap-x-4">
+                    <Pressable 
+                        onPress={() => router.back()}
+                        className="mt-1 w-8 h-8 rounded-full bg-card items-center justify-center border border-border/50 active:opacity-50"
+                    >
+                        <Icon as={ChevronLeft} size={20} className="text-foreground" />
+                    </Pressable>
+                    <View>
+                        <Text className="text-foreground font-bold text-3xl font-sans tracking-tight">
+                            Notifications
+                        </Text>
+                        <Text className="text-sm text-muted-foreground">
+                            {unreadCount} unread
+                        </Text>
+                    </View>
                 </View>
 
                 {notifications.length > 0 && (

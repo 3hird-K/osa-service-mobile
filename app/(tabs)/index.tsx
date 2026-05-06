@@ -3,8 +3,8 @@ import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { AlertDialog } from '@/components/ui/alert-dialog';
 import { useUser, useAuth } from '@clerk/clerk-expo';
-import { Stack, useRouter } from 'expo-router';
-import { Calendar, Camera, Play, Coffee, User, ChevronRight, LogOut, WifiOff } from 'lucide-react-native';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
+import { Calendar, Camera, Play, Coffee, User, ChevronRight, LogOut, WifiOff, Bell, Plus, QrCode } from 'lucide-react-native';
 import * as React from 'react';
 import { ScrollView, View, Image, Pressable, RefreshControl, Modal, Alert } from 'react-native';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -21,6 +21,15 @@ type Activity = {
   hours: number;
   date: string;
   description: string;
+};
+
+type ScannedTask = {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  hours: string | number;
+  assignee_id: string;
 };
 
 const CACHE_KEY = 'cache:home_activities';
@@ -103,6 +112,31 @@ export default function HomeScreen() {
   const [heartbeatStatus, setHeartbeatStatus] = React.useState<'idle' | 'sending' | 'ok' | 'fail'>('idle');
   const [lastPing, setLastPing] = React.useState<string>('Never');
 
+  const [currentActivity, setCurrentActivity] = React.useState<ScannedTask | null>(null);
+  const params = useLocalSearchParams<{ scannedTask?: string }>();
+
+  React.useEffect(() => {
+    if (params.scannedTask) {
+      try {
+        const parsed = JSON.parse(params.scannedTask);
+        setCurrentActivity(parsed);
+      } catch (e) {
+        // Fallback for legacy ID-only QR codes
+        setCurrentActivity({
+          id: params.scannedTask,
+          title: "General Task",
+          description: "No description provided.",
+          location: "Unknown Location",
+          hours: "0",
+          assignee_id: user?.id || ""
+        });
+      }
+      setIsActive(false); // Reset session if they scan a new one
+      setSessionStartedAt(null);
+      setProofImages([]);
+    }
+  }, [params.scannedTask, user?.id]);
+
   const API_URL = 'https://server-osa-service.onrender.com';
 
   const sendHeartbeat = React.useCallback(async () => {
@@ -115,12 +149,12 @@ export default function HomeScreen() {
       console.log(`[Heartbeat] Pinging ${API_URL}/users/${user.id}/heartbeat`);
       const res = await fetch(`${API_URL}/users/${user.id}/heartbeat`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({}),
       });
-      
+
       if (res.ok) {
         setHeartbeatStatus('ok');
         setLastPing(new Date().toLocaleTimeString());
@@ -213,9 +247,6 @@ export default function HomeScreen() {
     fetchActivities(true);
   }, [fetchActivities]);
 
-
-  const currentActivity = "Library Assistance";
-
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good Morning,';
@@ -290,57 +321,73 @@ export default function HomeScreen() {
             <Text className="text-foreground font-bold text-3xl font-sans tracking-tight mt-0.5" numberOfLines={1}>
               {user?.username ?? 'Neil Dime'}
             </Text>
-            <Pressable 
+            <Pressable
               onPress={sendHeartbeat}
               className="flex-row items-center gap-2 mt-1 active:opacity-50"
             >
-              <View className={`w-2 h-2 rounded-full ${heartbeatStatus === 'ok' ? 'bg-green-500' : heartbeatStatus === 'sending' ? 'bg-amber-500 animate-pulse' : 'bg-red-500'}`} />
+              <View
+                className="w-2 h-2 rounded-full"
+                style={{
+                  backgroundColor: heartbeatStatus === 'ok' ? '#22c55e' : heartbeatStatus === 'sending' ? '#f59e0b' : '#ef4444',
+                  opacity: heartbeatStatus === 'sending' ? 0.5 : 1
+                }}
+              />
               <Text className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">
                 Status: {heartbeatStatus === 'ok' ? `Active (Last: ${lastPing})` : heartbeatStatus === 'sending' ? 'Syncing...' : 'Sync Failed (Tap to retry)'}
               </Text>
             </Pressable>
           </View>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Pressable
-                className="w-12 h-12 rounded-full bg-card items-center justify-center overflow-hidden border border-border/50 shadow-sm"
-              >
-                {user?.imageUrl ? (
-                  <Image source={{ uri: user.imageUrl }} className="w-full h-full" />
-                ) : (
-                  <Icon as={User} size={24} className="text-muted-foreground" />
-                )}
-              </Pressable>
-            </PopoverTrigger>
-            <PopoverContent align="end" sideOffset={8} className="w-64 p-0 bg-popover border-border/10 rounded-2xl shadow-xl">
-              <View className="p-4 flex-row items-center border-b border-border/10">
-                <View className="w-10 h-10 rounded-full bg-accent items-center justify-center overflow-hidden mr-3">
+          <View className="flex-row items-center gap-x-3">
+            <Pressable
+              className="w-12 h-12 rounded-full bg-card items-center justify-center border border-border/50 shadow-sm"
+              onPress={() => router.push('/notifications')}
+            >
+              <Icon as={Bell} size={22} className="text-foreground" />
+              {/* Notification Badge */}
+              <View className="absolute top-3 right-3 w-2.5 h-2.5 bg-destructive rounded-full border-2 border-card" />
+            </Pressable>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Pressable
+                  className="w-12 h-12 rounded-full bg-card items-center justify-center overflow-hidden border border-border/50 shadow-sm"
+                >
                   {user?.imageUrl ? (
                     <Image source={{ uri: user.imageUrl }} className="w-full h-full" />
                   ) : (
-                    <Icon as={User} size={20} className="text-muted-foreground" />
+                    <Icon as={User} size={24} className="text-muted-foreground" />
                   )}
+                </Pressable>
+              </PopoverTrigger>
+              <PopoverContent align="end" sideOffset={8} className="w-64 p-0 bg-popover border-border/10 rounded-2xl shadow-xl">
+                <View className="p-4 flex-row items-center border-b border-border/10">
+                  <View className="w-10 h-10 rounded-full bg-accent items-center justify-center overflow-hidden mr-3">
+                    {user?.imageUrl ? (
+                      <Image source={{ uri: user.imageUrl }} className="w-full h-full" />
+                    ) : (
+                      <Icon as={User} size={20} className="text-muted-foreground" />
+                    )}
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-popover-foreground font-semibold font-sans">{user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Neil Dime'}</Text>
+                    <Text className="text-muted-foreground text-xs font-sans mt-0.5" numberOfLines={1}>
+                      {user?.primaryEmailAddress?.emailAddress ?? 'neildime03@gmail.com'}
+                    </Text>
+                  </View>
                 </View>
-                <View className="flex-1">
-                  <Text className="text-popover-foreground font-semibold font-sans">{user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Neil Dime'}</Text>
-                  <Text className="text-muted-foreground text-xs font-sans mt-0.5" numberOfLines={1}>
-                    {user?.primaryEmailAddress?.emailAddress ?? 'neildime03@gmail.com'}
-                  </Text>
-                </View>
-              </View>
 
-              <Pressable
-                onPress={async () => {
-                  if (user?.id) await notifyLogout(user.id);
-                  signOut();
-                }}
-                className="flex-row items-center px-4 py-3.5 rounded-b-2xl"
-              >
-                <Icon as={LogOut} size={18} className="text-muted-foreground mr-3" />
-                <Text className="text-popover-foreground font-medium font-sans text-[15px]">Logout</Text>
-              </Pressable>
-            </PopoverContent>
-          </Popover>
+                <Pressable
+                  onPress={async () => {
+                    if (user?.id) await notifyLogout(user.id);
+                    signOut();
+                  }}
+                  className="flex-row items-center px-4 py-3.5 rounded-b-2xl"
+                >
+                  <Icon as={LogOut} size={18} className="text-muted-foreground mr-3" />
+                  <Text className="text-popover-foreground font-medium font-sans text-[15px]">Logout</Text>
+                </Pressable>
+              </PopoverContent>
+            </Popover>
+          </View>
         </View>
 
         {/* Main Action Card */}
@@ -352,15 +399,23 @@ export default function HomeScreen() {
               <Skeleton className="h-8 w-full mb-2" />
               <Skeleton className="h-14 w-full rounded-[20px]" />
             </View>
-          ) : (
+          ) : currentActivity ? (
             <>
               <View className="mb-4">
                 <Text className="text-muted-foreground text-[10px] uppercase font-bold tracking-widest mb-1 font-sans">Current Activity</Text>
                 <Text className="text-foreground text-2xl font-black font-sans tracking-tight" numberOfLines={1}>
-                  {currentActivity}
+                  {currentActivity.title}
                 </Text>
-                <Text className="text-muted-foreground text-xs font-sans mt-0.5">Started: {sessionStartedAt ? new Date(sessionStartedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Not checked in'}</Text>
-                <Text className="text-muted-foreground">Building 23 - 3rd Floor</Text>
+                <Text className="text-muted-foreground text-xs font-sans mt-1" numberOfLines={2}>
+                  {currentActivity.description}
+                </Text>
+                <View className="flex-row items-center mt-3">
+                  <View className="bg-primary/10 px-2 py-0.5 rounded-md mr-2">
+                    <Text className="text-primary text-[10px] font-bold font-sans uppercase">{currentActivity.id}</Text>
+                  </View>
+                  <Text className="text-muted-foreground text-xs font-sans">Started: {sessionStartedAt ? new Date(sessionStartedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Not checked in'}</Text>
+                </View>
+                <Text className="text-muted-foreground text-xs font-sans mt-1 font-medium">{currentActivity.location}</Text>
               </View>
 
               <View className="flex-row items-center mb-8">
@@ -371,11 +426,11 @@ export default function HomeScreen() {
                 </View>
                 <View className="ml-auto items-end">
                   <Text className="text-muted-foreground text-[10px] uppercase font-bold text-right font-sans">
-                    {isActive ? 'Live Timer' : 'Total Rendered'}
+                    {isActive ? 'Live Timer' : 'Must be Rendered'}
                   </Text>
                   <View className="flex-row items-baseline">
                     <Text className="text-foreground text-2xl font-black font-sans tracking-tight">
-                      {isActive ? formatDuration(elapsedSeconds) : totalHoursRendered}
+                      {isActive ? formatDuration(elapsedSeconds) : currentActivity.hours}
                     </Text>
                     {!isActive && <Text className="text-muted-foreground text-xs font-bold ml-1 font-sans">hrs</Text>}
                   </View>
@@ -473,6 +528,17 @@ export default function HomeScreen() {
                 </View>
               )}
             </>
+          ) : (
+            <View className="py-12 items-center justify-center rounded-3xl bg-card/30 border border-border/20 shadow-sm overflow-hidden">
+              <View className="absolute inset-0 bg-primary/5 opacity-10" />
+              <View className="w-16 h-16 rounded-full bg-accent items-center justify-center mb-4">
+                <Icon as={QrCode} size={28} className="text-muted-foreground opacity-50" />
+              </View>
+              <Text className="text-foreground/80 text-lg font-bold font-sans text-center">No Active Session</Text>
+              <Text className="text-muted-foreground text-center font-sans text-xs px-10 leading-4 mt-2">
+                Your current activity will appear here once you scan a task QR code.
+              </Text>
+            </View>
           )}
         </View>
 

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Tabs } from 'expo-router';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { useColorScheme } from 'nativewind';
-import { Home, UserRound, Bell } from 'lucide-react-native';
+import { Home, UserRound, ScanLine } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -15,8 +15,8 @@ import Animated, {
 
 /* ── Tab config ─────────────────────────────────────── */
 const TAB_ITEMS: Record<string, { icon: any }> = {
-    notifications: { icon: Bell },
     index: { icon: Home },
+    scan: { icon: ScanLine },
     account: { icon: UserRound },
 };
 
@@ -268,7 +268,7 @@ export default function TabLayout() {
             tabBar={(props) => <FloatingCircleTabBar {...props} />}
             screenOptions={{ headerShown: false }}
         >
-            <Tabs.Screen name="notifications" options={{ title: 'Notifications' }} />
+            <Tabs.Screen name="scan" options={{ title: 'Scan' }} />
             <Tabs.Screen name="index" options={{ title: 'Home' }} />
             <Tabs.Screen name="account" options={{ title: 'Account' }} />
         </Tabs>
