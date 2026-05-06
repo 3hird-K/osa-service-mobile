@@ -3,16 +3,18 @@ import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { AlertDialog } from '@/components/ui/alert-dialog';
 import { useUser, useAuth } from '@clerk/clerk-expo';
-import { Stack, useRouter } from 'expo-router';
-import { Calendar, Camera, Play, Coffee, User, ChevronRight, LogOut, WifiOff } from 'lucide-react-native';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
+import { Calendar, Camera, Play, Coffee, User, ChevronRight, LogOut, WifiOff, Bell, Plus, QrCode, X, Trash2 } from 'lucide-react-native';
 import * as React from 'react';
-import { ScrollView, View, Image, Pressable, RefreshControl, Modal } from 'react-native';
+import { ScrollView, View, Image, Pressable, RefreshControl, Modal, Alert } from 'react-native';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { notifyLogout } from '@/hooks/useHeartbeat';
 import { loadCache, saveCache } from '@/hooks/useOfflineStorage';
+import { toast } from 'sonner-native';
 
 type Activity = {
   id: string;
@@ -20,6 +22,17 @@ type Activity = {
   hours: number;
   date: string;
   description: string;
+  taskStatus?: string;
+};
+
+type ScannedTask = {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  hours: string | number;
+  status?: string;
+  assignee_id: string;
 };
 
 const CACHE_KEY = 'cache:home_activities';
@@ -99,62 +112,146 @@ export default function HomeScreen() {
   const [showAllProofs, setShowAllProofs] = React.useState(false);
   const [selectedActivity, setSelectedActivity] = React.useState<Activity | null>(null);
   const [logDetailsDialog, setLogDetailsDialog] = React.useState(false);
+  const [heartbeatStatus, setHeartbeatStatus] = React.useState<'idle' | 'sending' | 'ok' | 'fail'>('idle');
+  const [unreadCount, setUnreadCount] = React.useState(0);
+  const [lastPing, setLastPing] = React.useState<string>('Never');
 
-  const fetchActivities = React.useCallback(async (isRefresh = false) => {
-    if (!isRefresh) setIsLoading(true);
-
-    if (!isOnline) {
-      // Offline: try to restore from cache
-      const cached = await loadCache<Activity[]>(CACHE_KEY);
-      if (cached) {
-        setCompletedActivities(cached);
-        setFromCache(true);
-      } else {
-        // No cache yet, show mock data
-        setCompletedActivities(MOCK_ACTIVITIES);
-        setFromCache(true);
-      }
-      setIsLoading(false);
-      if (isRefresh) setRefreshing(false);
-      return;
-    }
-
-    // Online: simulate fetch then cache result
-    await new Promise((r) => setTimeout(r, 1500));
-    setCompletedActivities(MOCK_ACTIVITIES);
-    setFromCache(false);
-    await saveCache(CACHE_KEY, MOCK_ACTIVITIES);
-    setIsLoading(false);
-    if (isRefresh) setRefreshing(false);
-  }, [isOnline]);
+  const [currentActivity, setCurrentActivity] = React.useState<ScannedTask | null>(null);
+  const [activeLogId, setActiveLogId] = React.useState<string | null>(null);
+  const [isPaused, setIsPaused] = React.useState(false);
+  const params = useLocalSearchParams<{ scannedTask?: string }>();
 
   React.useEffect(() => {
-    // On mount: try cache first, then fetch
-    (async () => {
+    if (params.scannedTask) {
+      try {
+        const parsed = JSON.parse(params.scannedTask);
+
+        if (parsed.status?.toLowerCase() === 'completed') {
+          setCurrentActivity(null);
+          toast.error("This task is already completed!");
+        } else {
+          setCurrentActivity(parsed);
+          toast.success("Task scanned!");
+        }
+      } catch (e) {
+        // Fallback for legacy ID-only QR codes
+        setCurrentActivity({
+          id: params.scannedTask,
+          title: "General Task",
+          description: "No description provided.",
+          location: "Unknown Location",
+          hours: "0",
+          assignee_id: user?.id || ""
+        });
+      }
+      setIsActive(false);
+      setSessionStartedAt(null);
+      setProofImages([]);
+    }
+  }, [params.scannedTask, user?.id]);
+
+  const API_URL = 'https://server-osa-service.onrender.com';
+
+  const fetchActivities = React.useCallback(async (silent = false) => {
+    if (!user?.id) return;
+    if (!silent) setIsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/users/${user.id}/logs`);
+      if (res.ok) {
+        const data = await res.json();
+        const mappedLogs = data.map((log: any) => ({
+          id: log.id,
+          name: log.task?.title || "Unknown Task",
+          date: new Date(log.date).toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' }),
+          hours: parseFloat(log.hours || "0"),
+          description: log.task?.description || "",
+          taskStatus: log.task?.status || "In Progress"
+        }));
+        setCompletedActivities(mappedLogs);
+        setFromCache(false);
+        await saveCache(CACHE_KEY, mappedLogs);
+      }
+
+      // Fetch unread notifications count
+      const notifRes = await fetch(`${API_URL}/users/${user.id}/notifications`);
+      if (notifRes.ok) {
+        const notifData = await notifRes.json();
+        const unread = notifData.filter((n: any) => !n.is_read).length;
+        setUnreadCount(unread);
+      }
+    } catch (error) {
+      console.error('[Home] Fetch failed:', error);
       const cached = await loadCache<Activity[]>(CACHE_KEY);
       if (cached) {
         setCompletedActivities(cached);
-        setFromCache(!isOnline);
-        setIsLoading(false);
-        // Still refresh in background if online
-        if (isOnline) fetchActivities();
-      } else {
-        fetchActivities();
+        setFromCache(true);
       }
-    })();
-  }, []);
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
+  }, [user?.id]);
 
+  const sendHeartbeat = React.useCallback(async () => {
+    if (!user?.id) return;
+    setHeartbeatStatus('sending');
+    try {
+      const res = await fetch(`${API_URL}/users/${user.id}/heartbeat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        setHeartbeatStatus('ok');
+        setLastPing(new Date().toLocaleTimeString());
+      } else {
+        setHeartbeatStatus('fail');
+      }
+    } catch (err: any) {
+      setHeartbeatStatus('fail');
+    }
+  }, [user?.id]);
+
+  // ─── Initial Load & History ───
+  React.useEffect(() => {
+    fetchActivities();
+  }, [fetchActivities]);
+
+  // ─── Welcome Notification (Daily) ───
+  React.useEffect(() => {
+    if (!user?.id) return;
+    const triggerWelcome = async () => {
+      try {
+        const today = new Date().toDateString();
+        const lastWelcome = await loadCache<string>('last_welcome_date');
+        if (lastWelcome !== today) {
+          await fetch(`${API_URL}/users/${user.id}/welcome-notification`, { method: 'POST' });
+          await saveCache('last_welcome_date', today);
+        }
+      } catch (e) {
+        console.log('[Welcome] Notif skip');
+      }
+    };
+    triggerWelcome();
+  }, [user?.id]);
+
+  // ─── Heartbeat: mark user as online every 30s ───
+  React.useEffect(() => {
+    if (!user?.id) return;
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 30_000);
+    return () => clearInterval(interval);
+  }, [sendHeartbeat, user?.id]);
+
+  // ─── Session Timer ───
   React.useEffect(() => {
     if (!isActive || !sessionStartedAt) {
       setElapsedSeconds(0);
       return;
     }
-
-    setElapsedSeconds(Math.floor((Date.now() - sessionStartedAt) / 1000));
     const interval = setInterval(() => {
       setElapsedSeconds(Math.floor((Date.now() - sessionStartedAt) / 1000));
     }, 1000);
-
     return () => clearInterval(interval);
   }, [isActive, sessionStartedAt]);
 
@@ -162,9 +259,6 @@ export default function HomeScreen() {
     setRefreshing(true);
     fetchActivities(true);
   }, [fetchActivities]);
-
-
-  const currentActivity = "Library Assistance";
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -176,20 +270,136 @@ export default function HomeScreen() {
   const totalHoursRendered = completedActivities.reduce((acc, curr) => acc + curr.hours, 0);
   const [breakDialog, setBreakDialog] = React.useState(false);
 
-  const handleCheckIn = () => {
-    setIsActive(true);
-    setSessionStartedAt(Date.now());
-    setProofImages([]);
+  const handleCheckIn = async () => {
+    if (!user?.id || !currentActivity) return;
+
+    try {
+      const startTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+      const res = await fetch(`${API_URL}/timelogs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          task_id: currentActivity.id,
+          user_id: user.id,
+          start_time: startTime
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setActiveLogId(data.id);
+        setIsActive(true);
+        setSessionStartedAt(Date.now());
+        setProofImages([]);
+        toast.success("Check-in successful!");
+      } else {
+        toast.error("Failed to start session on the server.");
+      }
+    } catch (e) {
+      console.error("Check-in error:", e);
+      toast.error("Connection Error: Check your internet.");
+    }
   };
 
-  const handleSessionStop = () => {
-    setIsActive(false);
-    setSessionStartedAt(null);
-    setElapsedSeconds(0);
+  const handleSessionStop = async () => {
+    if (!activeLogId) return;
+
+    try {
+      const endTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+      const hoursWorked = (elapsedSeconds / 3600).toFixed(2);
+
+      const res = await fetch(`${API_URL}/timelogs/${activeLogId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          end_time: endTime,
+          hours: hoursWorked
+        })
+      });
+
+      if (res.ok) {
+        toast.success("Session saved successfully!");
+        setIsActive(false);
+        setSessionStartedAt(null);
+        setElapsedSeconds(0);
+        setActiveLogId(null);
+        fetchActivities(true); // Refresh history
+      }
+    } catch (e) {
+      console.error("Stop error:", e);
+      toast.error("Failed to save session to the server.");
+    }
   };
 
-  const handleBreak = () => {
-    setBreakDialog(true);
+  const handleBreak = async () => {
+    if (!activeLogId) return;
+    try {
+      const breakTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+      const res = await fetch(`${API_URL}/timelogs/${activeLogId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ break_time: breakTime })
+      });
+      if (res.ok) {
+        setIsPaused(true);
+        toast.success("On Break");
+      }
+    } catch (e) {
+      toast.error("Failed to log break.");
+    }
+  };
+
+  const handleResume = async () => {
+    if (!activeLogId) return;
+    try {
+      const backTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+      const res = await fetch(`${API_URL}/timelogs/${activeLogId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ back_time: backTime })
+      });
+      if (res.ok) {
+        setIsPaused(false);
+        toast.success("Back to Work");
+      }
+    } catch (e) {
+      toast.error("Failed to log resume.");
+    }
+  };
+
+  const handleDeleteLog = async (logId: string, taskStatus: string = "In Progress") => {
+    if (taskStatus.toLowerCase() === 'completed') {
+      toast.error("Completed tasks are locked.");
+      return;
+    }
+
+    Alert.alert(
+      "Delete Log",
+      "Are you sure you want to remove this session?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const res = await fetch(`${API_URL}/timelogs/${logId}?user_id=${user?.id}`, {
+                method: 'DELETE'
+              });
+              if (res.ok) {
+                toast.success("Log removed");
+                fetchActivities(true);
+              } else {
+                const err = await res.json();
+                toast.error(err.detail || "Failed to delete");
+              }
+            } catch (e) {
+              toast.error("Connection error");
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleCaptureProof = async () => {
@@ -238,47 +448,86 @@ export default function HomeScreen() {
           <View className="flex-1 pr-3">
             <Text className="text-muted-foreground text-[13px] font-semibold font-sans uppercase tracking-wider">{getGreeting()}</Text>
             <Text className="text-foreground font-bold text-3xl font-sans tracking-tight mt-0.5" numberOfLines={1}>
-              {user?.username ?? 'Neil Dime'}
+              {user?.username ?? user?.firstName ?? 'Student'}
             </Text>
+            <Pressable
+              onPress={sendHeartbeat}
+              className="flex-row items-center gap-2 mt-1 active:opacity-50"
+            >
+              <View
+                className="w-2 h-2 rounded-full"
+                style={{
+                  backgroundColor: heartbeatStatus === 'ok' ? '#22c55e' : heartbeatStatus === 'sending' ? '#f59e0b' : '#ef4444',
+                  opacity: heartbeatStatus === 'sending' ? 0.5 : 1
+                }}
+              />
+              <Text className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">
+                Status: {heartbeatStatus === 'ok' ? `Active (Last: ${lastPing})` : heartbeatStatus === 'sending' ? 'Syncing...' : 'Sync Failed (Tap to retry)'}
+              </Text>
+            </Pressable>
           </View>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Pressable
-                className="w-12 h-12 rounded-full bg-card items-center justify-center overflow-hidden border border-border/50 shadow-sm"
-              >
-                {user?.imageUrl ? (
-                  <Image source={{ uri: user.imageUrl }} className="w-full h-full" />
-                ) : (
-                  <Icon as={User} size={24} className="text-muted-foreground" />
-                )}
-              </Pressable>
-            </PopoverTrigger>
-            <PopoverContent align="end" sideOffset={8} className="w-64 p-0 bg-popover border-border/10 rounded-2xl shadow-xl">
-              <View className="p-4 flex-row items-center border-b border-border/10">
-                <View className="w-10 h-10 rounded-full bg-accent items-center justify-center overflow-hidden mr-3">
+          <View className="flex-row items-center gap-x-3">
+            <Pressable
+              className="w-12 h-12 rounded-full bg-card items-center justify-center border border-border/50 shadow-sm"
+              onPress={() => router.push('/notifications')}
+            >
+              <Icon as={Bell} size={22} className="text-foreground" />
+              {/* Notification Badge */}
+              {unreadCount > 0 && (
+                <View className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-destructive rounded-full border-2 border-card items-center justify-center">
+                  <Text className="text-white text-[9px] font-bold">{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                </View>
+              )}
+            </Pressable>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Pressable
+                  className="w-12 h-12 rounded-full bg-card items-center justify-center overflow-hidden border border-border/50 shadow-sm"
+                >
                   {user?.imageUrl ? (
                     <Image source={{ uri: user.imageUrl }} className="w-full h-full" />
                   ) : (
-                    <Icon as={User} size={20} className="text-muted-foreground" />
+                    <Icon as={User} size={24} className="text-muted-foreground" />
                   )}
+                </Pressable>
+              </PopoverTrigger>
+              <PopoverContent align="end" sideOffset={8} className="w-64 p-0 bg-popover border-border/10 rounded-2xl shadow-xl">
+                <View className="p-4 flex-row items-center border-b border-border/10">
+                  <View className="w-10 h-10 rounded-full bg-accent items-center justify-center overflow-hidden mr-3">
+                    {user?.imageUrl ? (
+                      <Image source={{ uri: user.imageUrl }} className="w-full h-full" />
+                    ) : (
+                      <Icon as={User} size={20} className="text-muted-foreground" />
+                    )}
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-popover-foreground font-semibold font-sans">{user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Student'}</Text>
+                    <Text className="text-muted-foreground text-xs font-sans mt-0.5" numberOfLines={1}>
+                      {user?.primaryEmailAddress?.emailAddress ?? 'Account details...'}
+                    </Text>
+                  </View>
                 </View>
-                <View className="flex-1">
-                  <Text className="text-popover-foreground font-semibold font-sans">{user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Neil Dime'}</Text>
-                  <Text className="text-muted-foreground text-xs font-sans mt-0.5" numberOfLines={1}>
-                    {user?.primaryEmailAddress?.emailAddress ?? 'neildime03@gmail.com'}
-                  </Text>
-                </View>
-              </View>
 
-              <Pressable
-                onPress={() => signOut()}
-                className="flex-row items-center px-4 py-3.5 rounded-b-2xl"
-              >
-                <Icon as={LogOut} size={18} className="text-muted-foreground mr-3" />
-                <Text className="text-popover-foreground font-medium font-sans text-[15px]">Logout</Text>
-              </Pressable>
-            </PopoverContent>
-          </Popover>
+                <Pressable
+                  onPress={async () => {
+                    console.log("[Logout] Button pressed");
+                    if (user?.id) notifyLogout(user.id); // Don't await, just fire and forget
+                    try {
+                      await signOut();
+                      console.log("[Logout] SignOut successful");
+                    } catch (e) {
+                      console.error("[Logout] SignOut failed:", e);
+                      toast.error("Logout failed");
+                    }
+                  }}
+                  className="flex-row items-center px-4 py-3.5 m-2 rounded-xl bg-destructive/10 active:bg-destructive/20 border border-destructive/20"
+                >
+                  <Icon as={LogOut} size={18} className="text-destructive mr-3" />
+                  <Text className="text-destructive font-bold font-sans text-[15px]">Logout</Text>
+                </Pressable>
+              </PopoverContent>
+            </Popover>
+          </View>
         </View>
 
         {/* Main Action Card */}
@@ -290,30 +539,54 @@ export default function HomeScreen() {
               <Skeleton className="h-8 w-full mb-2" />
               <Skeleton className="h-14 w-full rounded-[20px]" />
             </View>
-          ) : (
+          ) : (currentActivity && currentActivity.status?.toLowerCase() !== 'completed') ? (
             <>
+              <View className="flex-row justify-between items-start mb-4">
+                <View className="flex-1">
+                  <Text className="text-muted-foreground text-[10px] uppercase font-bold tracking-widest mb-1 font-sans">Current Activity</Text>
+                  <Text className="text-foreground text-2xl font-black font-sans tracking-tight" numberOfLines={1}>
+                    {currentActivity.title}
+                  </Text>
+                </View>
+                {!isActive && (
+                  <Pressable
+                    onPress={() => {
+                      setCurrentActivity(null);
+                      toast.success("Task cleared");
+                    }}
+                    className="w-8 h-8 rounded-full bg-accent items-center justify-center -mr-2"
+                  >
+                    <Icon as={X} size={16} className="text-muted-foreground" />
+                  </Pressable>
+                )}
+              </View>
+
               <View className="mb-4">
-                <Text className="text-muted-foreground text-[10px] uppercase font-bold tracking-widest mb-1 font-sans">Current Activity</Text>
-                <Text className="text-foreground text-2xl font-black font-sans tracking-tight" numberOfLines={1}>
-                  {currentActivity}
+                <Text className="text-muted-foreground text-xs font-sans" numberOfLines={2}>
+                  {currentActivity.description}
                 </Text>
-                <Text className="text-muted-foreground text-xs font-sans mt-0.5">Started: {sessionStartedAt ? new Date(sessionStartedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Not checked in'}</Text>
-                <Text className="text-muted-foreground">Building 23 - 3rd Floor</Text>
+                <View className="flex-row items-center mt-3">
+                  <View className="bg-primary/10 px-2 py-0.5 rounded-md mr-2">
+                    <Text className="text-primary text-[10px] font-bold font-sans uppercase">{currentActivity.id}</Text>
+                  </View>
+                  <Text className="text-muted-foreground text-xs font-sans">Started: {sessionStartedAt ? new Date(sessionStartedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Not checked in'}</Text>
+                </View>
+                <Text className="text-muted-foreground text-xs font-sans mt-1 font-medium">{currentActivity.location}</Text>
               </View>
 
               <View className="flex-row items-center mb-8">
                 <View className={`px-3 py-1 rounded-full border ${isActive ? 'bg-primary/10 border-primary/20' : 'bg-muted border-border/50'}`}>
-                  <Text className={`text-[10px] font-bold uppercase font-sans tracking-wider ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
-                    {isActive ? '● Session Active' : 'Waiting for Start'}
+                  <Text className={`text-[10px] font-bold uppercase font-sans tracking-wider ${isActive ? (isPaused ? 'text-amber-500' : 'text-primary') : 'text-muted-foreground'}`}>
+                    {isActive ? (isPaused ? '● On Break' : '● Session Active') : 'Waiting for Start'}
                   </Text>
                 </View>
                 <View className="ml-auto items-end">
                   <Text className="text-muted-foreground text-[10px] uppercase font-bold text-right font-sans">
-                    {isActive ? 'Live Timer' : 'Total Rendered'}
+                    {isActive ? 'Live Timer' : 'Must be Rendered'}
                   </Text>
                   <View className="flex-row items-baseline">
                     <Text className="text-foreground text-2xl font-black font-sans tracking-tight">
-                      {isActive ? formatDuration(elapsedSeconds) : totalHoursRendered}
+                      {isActive ? formatDuration(elapsedSeconds) : currentActivity.hours}
                     </Text>
                     {!isActive && <Text className="text-muted-foreground text-xs font-bold ml-1 font-sans">hrs</Text>}
                   </View>
@@ -379,10 +652,10 @@ export default function HomeScreen() {
                   <View className="flex-row gap-3">
                     <Button
                       variant="outline"
-                      className="w-14 bg-card border-border/50 rounded-[18px] py-4 shadow-sm"
-                      onPress={handleBreak}
+                      className={`w-14 rounded-[18px] py-4 shadow-sm ${isPaused ? 'bg-amber-500/10 border-amber-500/20' : 'bg-card border-border/50'}`}
+                      onPress={isPaused ? handleResume : handleBreak}
                     >
-                      <Icon as={Coffee} size={20} className="text-foreground" />
+                      <Icon as={isPaused ? Play : Coffee} size={20} className={isPaused ? 'text-amber-600' : 'text-foreground'} />
                     </Button>
 
                     <Button
@@ -400,17 +673,24 @@ export default function HomeScreen() {
 
                   <Button
                     className="bg-destructive rounded-[18px] py-4 shadow-sm"
-                    onPress={() => {
-                      handleSessionStop();
-                      router.push('/camera');
-                    }}
+                    onPress={handleSessionStop}
                   >
-                    <Icon as={Camera} size={20} className="text-destructive-foreground mr-2" />
+                    <Icon as={LogOut} size={20} className="text-destructive-foreground mr-2" />
                     <Text className="text-destructive-foreground font-black uppercase tracking-tight font-sans">Check Out</Text>
                   </Button>
                 </View>
               )}
             </>
+          ) : (
+            <View className="py-12 items-center justify-center">
+              <View className="w-20 h-20 rounded-full bg-accent/30 items-center justify-center mb-4 border border-border/20">
+                <Icon as={QrCode} size={32} className="text-muted-foreground opacity-40" />
+              </View>
+              <Text className="text-foreground text-xl font-black font-sans text-center tracking-tight">No Active Session</Text>
+              <Text className="text-muted-foreground text-center font-sans text-[13px] px-12 leading-5 mt-2">
+                Scan an activity QR code to start tracking your community service hours.
+              </Text>
+            </View>
           )}
         </View>
 
@@ -464,11 +744,24 @@ export default function HomeScreen() {
                     <Text className="text-muted-foreground text-xs font-sans mt-0.5">{activity.date}</Text>
                   </View>
                 </View>
-                <View className="items-end">
-                  <Text className="text-foreground font-bold text-[15px] font-sans">{activity.hours}h</Text>
-                  <View className="bg-primary/10 mt-1 px-2 py-0.5 rounded-full">
-                    <Text className="text-primary text-[10px] font-bold uppercase font-sans">Finished</Text>
+                <View className="flex-row items-center gap-x-3">
+                  <View className="items-end">
+                    <Text className="text-foreground font-bold text-[15px] font-sans">{activity.hours}h</Text>
+                    <View className="bg-primary/10 mt-1 px-2 py-0.5 rounded-full">
+                      <Text className="text-primary text-[10px] font-bold uppercase font-sans">
+                        {activity.taskStatus?.toLowerCase() === 'completed' ? 'Verified' : 'Finished'}
+                      </Text>
+                    </View>
                   </View>
+
+                  {activity.taskStatus?.toLowerCase() !== 'completed' && (
+                    <Pressable
+                      onPress={() => handleDeleteLog(activity.id, activity.taskStatus)}
+                      className="w-10 h-10 rounded-full bg-destructive/10 active:bg-destructive/20 items-center justify-center"
+                    >
+                      <Icon as={Trash2} size={18} className="text-destructive" />
+                    </Pressable>
+                  )}
                 </View>
               </Pressable>
             ))

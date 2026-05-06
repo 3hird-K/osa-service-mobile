@@ -2,8 +2,9 @@ import * as React from 'react';
 import { View, ScrollView, TouchableOpacity, RefreshControl, Pressable } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
-import { Bell, CheckCheck, ShieldCheck, Sparkles, Trash2, X, type LucideIcon } from 'lucide-react-native';
+import { Bell, CheckCheck, ShieldCheck, Sparkles, Trash2, X, ChevronLeft, Calendar, Info, type LucideIcon } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useUser } from '@clerk/clerk-expo';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useColorScheme } from 'nativewind';
 import Animated, {
@@ -15,42 +16,47 @@ import Animated, {
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { loadCache, saveCache } from '@/hooks/useOfflineStorage';
 import { toast } from 'sonner-native';
+import { Stack, useRouter } from 'expo-router';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 type Notification = {
-    id: number;
+    id: string;
     icon: LucideIcon;
     title: string;
     message: string;
     time: string;
     unread: boolean;
+    type: string;
 };
 
 const INITIAL_NOTIFICATIONS: Notification[] = [
     {
-        id: 1,
+        id: '1',
         icon: ShieldCheck,
         title: 'Security Update',
         message: 'Your account security has been verified. All systems are secure.',
         time: '2m ago',
         unread: true,
+        type: 'system',
     },
     {
-        id: 2,
+        id: '2',
         icon: Sparkles,
         title: 'Welcome to Osa Service',
         message: 'Thanks for joining! Explore the app to discover all available features.',
         time: '1h ago',
         unread: true,
+        type: 'system',
     },
     {
-        id: 3,
+        id: '3',
         icon: Bell,
         title: 'Profile Complete',
         message: 'Your profile setup is complete. You can now access all services.',
         time: '3h ago',
         unread: false,
+        type: 'system',
     },
 ];
 
@@ -61,6 +67,11 @@ const ICON_MAP: Record<string, LucideIcon> = {
     ShieldCheck,
     Sparkles,
     Bell,
+    Calendar,
+    Info,
+    task_assigned: Calendar,
+    task_completed: CheckCheck,
+    system: Bell,
 };
 
 const CACHE_KEY = 'cache:notifications';
@@ -90,8 +101,8 @@ function NotificationRow({
 }: {
     item: Notification;
     isLast: boolean;
-    onMarkAsRead: (id: number) => void;
-    onDelete: (id: number) => void;
+    onMarkAsRead: (id: string) => void;
+    onDelete: (id: string) => void;
 }) {
     const { colorScheme } = useColorScheme();
     const colors = ACTION_COLORS[colorScheme === 'dark' ? 'dark' : 'light'];
@@ -185,44 +196,100 @@ function NotificationRow({
 
 // ─── Main Screen ─────────────────────────────────────────────────────
 export default function NotificationsScreen() {
-    const [notifications, setNotifications] = React.useState(INITIAL_NOTIFICATIONS);
+    const { user } = useUser();
+    const router = useRouter();
+    const [notifications, setNotifications] = React.useState<Notification[]>([]);
     const [refreshing, setRefreshing] = React.useState(false);
     const [isLoading, setIsLoading] = React.useState(true);
     const [confirmClear, setConfirmClear] = React.useState(false);
     const clearTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     const { isOnline } = useNetworkStatus();
 
-    // Restore from cache on mount
-    React.useEffect(() => {
-        (async () => {
-            const cached = await loadCache<StoredNotification[]>(CACHE_KEY);
-            if (cached) {
-                setNotifications(cached.map(fromStored));
-            }
-            setIsLoading(false);
-        })();
-        return () => {
-            if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
-        };
-    }, []);
+    const API_URL = 'https://server-osa-service.onrender.com';
 
-    // Persist whenever notification list changes (after initial load)
-    const isFirstRender = React.useRef(true);
+    const fetchNotifications = React.useCallback(async (silent = false) => {
+        if (!user?.id) return;
+        if (!silent) setIsLoading(true);
+        try {
+            const res = await fetch(`${API_URL}/users/${user.id}/notifications`);
+            if (res.ok) {
+                const data = await res.json();
+                const mapped = data.map((n: any) => ({
+                    id: n.id,
+                    title: n.title,
+                    message: n.message,
+                    unread: !n.is_read,
+                    type: n.type,
+                    icon: ICON_MAP[n.type] || Bell,
+                    time: formatTime(n.created_at)
+                }));
+                setNotifications(mapped);
+                saveCache(CACHE_KEY, mapped.map(toStored));
+            }
+        } catch (error) {
+            console.error('[Notifications] Fetch failed:', error);
+            const cached = await loadCache<StoredNotification[]>(CACHE_KEY);
+            if (cached) setNotifications(cached.map(fromStored));
+        } finally {
+            setIsLoading(false);
+            setRefreshing(false);
+        }
+    }, [user?.id]);
+
     React.useEffect(() => {
-        if (isFirstRender.current) { isFirstRender.current = false; return; }
-        saveCache(CACHE_KEY, notifications.map(toStored));
-    }, [notifications]);
+        fetchNotifications();
+    }, [fetchNotifications]);
+
+    function formatTime(dateStr: string) {
+        if (!dateStr) return 'Recently';
+        
+        // Ensure the date is parsed as UTC if no timezone is provided
+        let date: Date;
+        if (dateStr.endsWith('Z') || dateStr.includes('+')) {
+            date = new Date(dateStr);
+        } else {
+            // Neon/FastAPI might return naive ISO strings, append Z to force UTC
+            date = new Date(dateStr + 'Z');
+        }
+
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        
+        // Use Math.max to avoid "in the future" negative numbers due to clock drift
+        const diffSecs = Math.max(0, Math.floor(diffMs / 1000));
+        const diffMins = Math.floor(diffSecs / 60);
+        const diffHrs = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHrs / 24);
+
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHrs < 24) return `${diffHrs}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        return date.toLocaleDateString();
+    }
 
     const unreadCount = notifications.filter((n) => n.unread).length;
 
-    const markAsRead = React.useCallback((id: number) => {
+    const markAsRead = React.useCallback(async (id: string) => {
+        // Optimistic UI
         setNotifications((prev) =>
             prev.map((n) => (n.id === id ? { ...n, unread: false } : n)),
         );
+        try {
+            await fetch(`${API_URL}/notifications/${id}/read`, { method: 'PATCH' });
+        } catch (e) {
+            console.error('[Notifications] Failed to mark as read');
+        }
     }, []);
 
-    const deleteNotification = React.useCallback((id: number) => {
+    const deleteNotification = React.useCallback(async (id: string) => {
+        // Optimistic UI
         setNotifications((prev) => prev.filter((n) => n.id !== id));
+        try {
+            await fetch(`${API_URL}/notifications/${id}`, { method: 'DELETE' });
+        } catch (e) {
+            console.error('[Notifications] Failed to delete notification');
+        }
     }, []);
 
     const clearAll = () => {
@@ -244,30 +311,29 @@ export default function NotificationsScreen() {
     };
 
     const onRefresh = () => {
-        if (!isOnline) {
-            setRefreshing(false);
-            toast.error('No internet connection', { description: 'Showing cached notifications.' });
-            return;
-        }
-        setRefreshing(true);
-        setTimeout(() => {
-            setNotifications(INITIAL_NOTIFICATIONS);
-            saveCache(CACHE_KEY, INITIAL_NOTIFICATIONS.map(toStored));
-            setRefreshing(false);
-        }, 1000);
+        fetchNotifications(true);
     };
 
     return (
         <SafeAreaView className="flex-1 bg-muted" edges={['top']}>
+            <Stack.Screen options={{ headerShown: false }} />
             {/* HEADER */}
-            <View className="px-5 py-4 flex-row justify-between items-center">
-                <View>
-                    <Text className="text-foreground font-bold text-3xl font-sans tracking-tight">
-                        Notifications
-                    </Text>
-                    <Text className="text-sm text-muted-foreground">
-                        {unreadCount} unread
-                    </Text>
+            <View className="px-5 py-4 flex-row justify-between items-start">
+                <View className="flex-row items-start gap-x-4">
+                    <Pressable 
+                        onPress={() => router.back()}
+                        className="mt-1 w-8 h-8 rounded-full bg-card items-center justify-center border border-border/50 active:opacity-50"
+                    >
+                        <Icon as={ChevronLeft} size={20} className="text-foreground" />
+                    </Pressable>
+                    <View>
+                        <Text className="text-foreground font-bold text-3xl font-sans tracking-tight">
+                            Notifications
+                        </Text>
+                        <Text className="text-sm text-muted-foreground">
+                            {unreadCount} unread
+                        </Text>
+                    </View>
                 </View>
 
                 {notifications.length > 0 && (
