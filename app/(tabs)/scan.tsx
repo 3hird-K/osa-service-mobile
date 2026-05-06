@@ -41,23 +41,29 @@ export default function ScanScreen() {
     );
   }
 
-  const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
+  const handleBarCodeScanned = ({ data }: { data: string }) => {
     if (hasScanned.current) return;
     hasScanned.current = true;
     setScanned(true);
     
+    console.log("[Scanner] QR Data detected:", data);
+
     try {
-      // 🛠️ Parse the new JSON-based QR data
+      // 🛠️ Parse the JSON-based QR data
       const parsedData = JSON.parse(data);
       const taskId = parsedData.id;
       const assigneeId = parsedData.assignee_id;
-      const taskTitle = parsedData.title || "Unknown Task";
+      const currentUserId = user?.id;
+
+      console.log("[Scanner] Parsed Task ID:", taskId);
+      console.log("[Scanner] QR Assignee ID:", assigneeId);
+      console.log("[Scanner] My Clerk ID:", currentUserId);
 
       // 🔐 Security Check: Verify if the task belongs to the scanning user
-      if (assigneeId && user?.id && assigneeId !== user.id) {
+      if (assigneeId && currentUserId && assigneeId !== currentUserId) {
         Alert.alert(
           "Access Denied",
-          `This task ("${taskTitle}") is not assigned to you. You can only check into your own assigned tasks.`,
+          `This task is assigned to a different user.\n\nAssigned to: ${assigneeId}\nYour ID: ${currentUserId}`,
           [{ text: "OK", onPress: () => {
             hasScanned.current = false;
             setScanned(false);
@@ -66,29 +72,26 @@ export default function ScanScreen() {
         return;
       }
 
-      // If verified or no assignment info, proceed
-      if (router) {
-        router.push({ 
-          pathname: '/(tabs)', 
-          params: { scannedTask: data } 
-        });
-      }
+      // If verified, proceed to Home Tab
+      router.replace({ 
+        pathname: '/', 
+        params: { scannedTask: data } 
+      });
+
     } catch (e) {
-      // Fallback for old QR codes that were just plain strings
-      console.log("Parsing failed, treating as legacy QR code:", e);
-      if (router) {
-        router.push({ 
-          pathname: '/(tabs)', 
-          params: { scannedTask: data } 
-        });
-      }
+      console.log("[Scanner] Parsing failed, treating as legacy ID:", e);
+      // Fallback for plain string IDs (though we want to move away from this)
+      router.replace({ 
+        pathname: '/', 
+        params: { scannedTask: data } 
+      });
     }
     
-    // Reset scanned state after a delay in case they navigate back
+    // Reset scanned state after a delay
     setTimeout(() => {
       hasScanned.current = false;
       setScanned(false);
-    }, 3000);
+    }, 2000);
   };
 
 

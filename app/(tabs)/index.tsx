@@ -113,6 +113,8 @@ export default function HomeScreen() {
   const [lastPing, setLastPing] = React.useState<string>('Never');
 
   const [currentActivity, setCurrentActivity] = React.useState<ScannedTask | null>(null);
+  const [activeLogId, setActiveLogId] = React.useState<string | null>(null);
+  const [isPaused, setIsPaused] = React.useState(false);
   const params = useLocalSearchParams<{ scannedTask?: string }>();
 
   React.useEffect(() => {
@@ -139,106 +141,79 @@ export default function HomeScreen() {
 
   const API_URL = 'https://server-osa-service.onrender.com';
 
-  const sendHeartbeat = React.useCallback(async () => {
-    if (!user?.id) {
-      console.log('[Heartbeat] No user ID yet');
-      return;
+  const fetchActivities = React.useCallback(async (silent = false) => {
+    if (!user?.id) return;
+    if (!silent) setIsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/users/${user.id}/logs`);
+      if (res.ok) {
+        const data = await res.json();
+        const mappedLogs = data.map((log: any) => ({
+          id: log.id,
+          name: log.task?.title || "Unknown Task",
+          date: new Date(log.date).toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' }),
+          hours: parseFloat(log.hours || "0"),
+          description: log.task?.description || ""
+        }));
+        setCompletedActivities(mappedLogs);
+        setFromCache(false);
+        await saveCache(CACHE_KEY, mappedLogs);
+      }
+    } catch (error) {
+      console.error('[History] Fetch failed:', error);
+      const cached = await loadCache<Activity[]>(CACHE_KEY);
+      if (cached) {
+        setCompletedActivities(cached);
+        setFromCache(true);
+      }
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
     }
+  }, [user?.id]);
+
+  const sendHeartbeat = React.useCallback(async () => {
+    if (!user?.id) return;
     setHeartbeatStatus('sending');
     try {
-      console.log(`[Heartbeat] Pinging ${API_URL}/users/${user.id}/heartbeat`);
       const res = await fetch(`${API_URL}/users/${user.id}/heartbeat`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
-
       if (res.ok) {
         setHeartbeatStatus('ok');
         setLastPing(new Date().toLocaleTimeString());
       } else {
-        const errorData = await res.text();
         setHeartbeatStatus('fail');
-        console.error(`[Heartbeat] Server Error (${res.status}):`, errorData);
-        Alert.alert('Status Sync Error', `Server returned ${res.status}. Your user ID might not be registered yet.`);
       }
     } catch (err: any) {
       setHeartbeatStatus('fail');
-      console.error(`[Heartbeat] Network Error:`, err?.message);
-      // Only show alert once to avoid spamming
-      Alert.alert('Connection Error', 'Could not sync your online status. Check your internet connection.');
     }
   }, [user?.id]);
+
+  // ─── Initial Load & History ───
+  React.useEffect(() => {
+    fetchActivities();
+  }, [fetchActivities]);
 
   // ─── Heartbeat: mark user as online every 30s ───
   React.useEffect(() => {
     if (!user?.id) return;
-
-    // Fire immediately on login
     sendHeartbeat();
-
-    // Then every 30 seconds
     const interval = setInterval(sendHeartbeat, 30_000);
     return () => clearInterval(interval);
   }, [sendHeartbeat, user?.id]);
 
-  const fetchActivities = React.useCallback(async (isRefresh = false) => {
-    if (!isRefresh) setIsLoading(true);
-
-    if (!isOnline) {
-      // Offline: try to restore from cache
-      const cached = await loadCache<Activity[]>(CACHE_KEY);
-      if (cached) {
-        setCompletedActivities(cached);
-        setFromCache(true);
-      } else {
-        // No cache yet, show mock data
-        setCompletedActivities(MOCK_ACTIVITIES);
-        setFromCache(true);
-      }
-      setIsLoading(false);
-      if (isRefresh) setRefreshing(false);
-      return;
-    }
-
-    // Online: simulate fetch then cache result
-    await new Promise((r) => setTimeout(r, 1500));
-    setCompletedActivities(MOCK_ACTIVITIES);
-    setFromCache(false);
-    await saveCache(CACHE_KEY, MOCK_ACTIVITIES);
-    setIsLoading(false);
-    if (isRefresh) setRefreshing(false);
-  }, [isOnline]);
-
-  React.useEffect(() => {
-    // On mount: try cache first, then fetch
-    (async () => {
-      const cached = await loadCache<Activity[]>(CACHE_KEY);
-      if (cached) {
-        setCompletedActivities(cached);
-        setFromCache(!isOnline);
-        setIsLoading(false);
-        // Still refresh in background if online
-        if (isOnline) fetchActivities();
-      } else {
-        fetchActivities();
-      }
-    })();
-  }, []);
-
+  // ─── Session Timer ───
   React.useEffect(() => {
     if (!isActive || !sessionStartedAt) {
       setElapsedSeconds(0);
       return;
     }
-
-    setElapsedSeconds(Math.floor((Date.now() - sessionStartedAt) / 1000));
     const interval = setInterval(() => {
       setElapsedSeconds(Math.floor((Date.now() - sessionStartedAt) / 1000));
     }, 1000);
-
     return () => clearInterval(interval);
   }, [isActive, sessionStartedAt]);
 
@@ -257,20 +232,98 @@ export default function HomeScreen() {
   const totalHoursRendered = completedActivities.reduce((acc, curr) => acc + curr.hours, 0);
   const [breakDialog, setBreakDialog] = React.useState(false);
 
-  const handleCheckIn = () => {
-    setIsActive(true);
-    setSessionStartedAt(Date.now());
-    setProofImages([]);
+  const handleCheckIn = async () => {
+    if (!user?.id || !currentActivity) return;
+
+    try {
+      const startTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+      const res = await fetch(`${API_URL}/timelogs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          task_id: currentActivity.id,
+          user_id: user.id,
+          start_time: startTime
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setActiveLogId(data.id);
+        setIsActive(true);
+        setSessionStartedAt(Date.now());
+        setProofImages([]);
+      } else {
+        Alert.alert("Server Error", "Failed to start session on the server.");
+      }
+    } catch (e) {
+      console.error("Check-in error:", e);
+      Alert.alert("Connection Error", "Check your internet connection and try again.");
+    }
   };
 
-  const handleSessionStop = () => {
-    setIsActive(false);
-    setSessionStartedAt(null);
-    setElapsedSeconds(0);
+  const handleSessionStop = async () => {
+    if (!activeLogId) return;
+
+    try {
+      const endTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+      const hoursWorked = (elapsedSeconds / 3600).toFixed(2);
+
+      const res = await fetch(`${API_URL}/timelogs/${activeLogId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          end_time: endTime,
+          hours: hoursWorked
+        })
+      });
+
+      if (res.ok) {
+        Alert.alert("Success", "Session saved successfully!");
+        setIsActive(false);
+        setSessionStartedAt(null);
+        setElapsedSeconds(0);
+        setActiveLogId(null);
+        fetchActivities(true); // Refresh history
+      }
+    } catch (e) {
+      console.error("Stop error:", e);
+      Alert.alert("Error", "Failed to save session to the server.");
+    }
   };
 
-  const handleBreak = () => {
-    setBreakDialog(true);
+  const handleBreak = async () => {
+    if (!activeLogId) return;
+    try {
+      const breakTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+      const res = await fetch(`${API_URL}/timelogs/${activeLogId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ break_time: breakTime })
+      });
+      if (res.ok) {
+        setIsPaused(true);
+      }
+    } catch (e) {
+      Alert.alert("Error", "Failed to log break.");
+    }
+  };
+
+  const handleResume = async () => {
+    if (!activeLogId) return;
+    try {
+      const backTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+      const res = await fetch(`${API_URL}/timelogs/${activeLogId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ back_time: backTime })
+      });
+      if (res.ok) {
+        setIsPaused(false);
+      }
+    } catch (e) {
+      Alert.alert("Error", "Failed to log resume.");
+    }
   };
 
   const handleCaptureProof = async () => {
@@ -420,8 +473,8 @@ export default function HomeScreen() {
 
               <View className="flex-row items-center mb-8">
                 <View className={`px-3 py-1 rounded-full border ${isActive ? 'bg-primary/10 border-primary/20' : 'bg-muted border-border/50'}`}>
-                  <Text className={`text-[10px] font-bold uppercase font-sans tracking-wider ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
-                    {isActive ? '● Session Active' : 'Waiting for Start'}
+                  <Text className={`text-[10px] font-bold uppercase font-sans tracking-wider ${isActive ? (isPaused ? 'text-amber-500' : 'text-primary') : 'text-muted-foreground'}`}>
+                    {isActive ? (isPaused ? '● On Break' : '● Session Active') : 'Waiting for Start'}
                   </Text>
                 </View>
                 <View className="ml-auto items-end">
@@ -496,10 +549,10 @@ export default function HomeScreen() {
                   <View className="flex-row gap-3">
                     <Button
                       variant="outline"
-                      className="w-14 bg-card border-border/50 rounded-[18px] py-4 shadow-sm"
-                      onPress={handleBreak}
+                      className={`w-14 rounded-[18px] py-4 shadow-sm ${isPaused ? 'bg-amber-500/10 border-amber-500/20' : 'bg-card border-border/50'}`}
+                      onPress={isPaused ? handleResume : handleBreak}
                     >
-                      <Icon as={Coffee} size={20} className="text-foreground" />
+                      <Icon as={isPaused ? Play : Coffee} size={20} className={isPaused ? 'text-amber-600' : 'text-foreground'} />
                     </Button>
 
                     <Button
@@ -517,12 +570,9 @@ export default function HomeScreen() {
 
                   <Button
                     className="bg-destructive rounded-[18px] py-4 shadow-sm"
-                    onPress={() => {
-                      handleSessionStop();
-                      router.push('/camera');
-                    }}
+                    onPress={handleSessionStop}
                   >
-                    <Icon as={Camera} size={20} className="text-destructive-foreground mr-2" />
+                    <Icon as={LogOut} size={20} className="text-destructive-foreground mr-2" />
                     <Text className="text-destructive-foreground font-black uppercase tracking-tight font-sans">Check Out</Text>
                   </Button>
                 </View>
