@@ -4,7 +4,7 @@ import { Text } from '@/components/ui/text';
 import { AlertDialog } from '@/components/ui/alert-dialog';
 import { useUser, useAuth } from '@clerk/clerk-expo';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
-import { Calendar, Camera, Play, Coffee, User, ChevronRight, LogOut, WifiOff, Bell, Plus, QrCode, X } from 'lucide-react-native';
+import { Calendar, Camera, Play, Coffee, User, ChevronRight, LogOut, WifiOff, Bell, Plus, QrCode, X, Trash2 } from 'lucide-react-native';
 import * as React from 'react';
 import { ScrollView, View, Image, Pressable, RefreshControl, Modal, Alert } from 'react-native';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -22,6 +22,7 @@ type Activity = {
   hours: number;
   date: string;
   description: string;
+  taskStatus?: string;
 };
 
 type ScannedTask = {
@@ -123,7 +124,7 @@ export default function HomeScreen() {
     if (params.scannedTask) {
       try {
         const parsed = JSON.parse(params.scannedTask);
-        
+
         if (parsed.status?.toLowerCase() === 'completed') {
           setCurrentActivity(null);
           toast.error("This task is already completed!");
@@ -142,7 +143,7 @@ export default function HomeScreen() {
           assignee_id: user?.id || ""
         });
       }
-      setIsActive(false); 
+      setIsActive(false);
       setSessionStartedAt(null);
       setProofImages([]);
     }
@@ -162,8 +163,10 @@ export default function HomeScreen() {
           name: log.task?.title || "Unknown Task",
           date: new Date(log.date).toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' }),
           hours: parseFloat(log.hours || "0"),
-          description: log.task?.description || ""
+          description: log.task?.description || "",
+          taskStatus: log.task?.status || "In Progress"
         }));
+        console.log("[History] Loaded logs:", mappedLogs.length, "Task statuses:", mappedLogs.map((l: any) => l.taskStatus));
         setCompletedActivities(mappedLogs);
         setFromCache(false);
         await saveCache(CACHE_KEY, mappedLogs);
@@ -338,6 +341,41 @@ export default function HomeScreen() {
     }
   };
 
+  const handleDeleteLog = async (logId: string, taskStatus: string = "In Progress") => {
+    if (taskStatus.toLowerCase() === 'completed') {
+      toast.error("Completed tasks are locked.");
+      return;
+    }
+
+    Alert.alert(
+      "Delete Log",
+      "Are you sure you want to remove this session?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const res = await fetch(`${API_URL}/timelogs/${logId}?user_id=${user?.id}`, {
+                method: 'DELETE'
+              });
+              if (res.ok) {
+                toast.success("Log removed");
+                fetchActivities(true);
+              } else {
+                const err = await res.json();
+                toast.error(err.detail || "Failed to delete");
+              }
+            } catch (e) {
+              toast.error("Connection error");
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleCaptureProof = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
@@ -384,7 +422,7 @@ export default function HomeScreen() {
           <View className="flex-1 pr-3">
             <Text className="text-muted-foreground text-[13px] font-semibold font-sans uppercase tracking-wider">{getGreeting()}</Text>
             <Text className="text-foreground font-bold text-3xl font-sans tracking-tight mt-0.5" numberOfLines={1}>
-              {user?.username ?? 'Neil Dime'}
+              {user?.username ?? user?.firstName ?? 'Student'}
             </Text>
             <Pressable
               onPress={sendHeartbeat}
@@ -433,17 +471,24 @@ export default function HomeScreen() {
                     )}
                   </View>
                   <View className="flex-1">
-                    <Text className="text-popover-foreground font-semibold font-sans">{user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Neil Dime'}</Text>
+                    <Text className="text-popover-foreground font-semibold font-sans">{user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Student'}</Text>
                     <Text className="text-muted-foreground text-xs font-sans mt-0.5" numberOfLines={1}>
-                      {user?.primaryEmailAddress?.emailAddress ?? 'neildime03@gmail.com'}
+                      {user?.primaryEmailAddress?.emailAddress ?? 'Account details...'}
                     </Text>
                   </View>
                 </View>
 
                 <Pressable
                   onPress={async () => {
-                    if (user?.id) await notifyLogout(user.id);
-                    signOut();
+                    console.log("[Logout] Button pressed");
+                    if (user?.id) notifyLogout(user.id); // Don't await, just fire and forget
+                    try {
+                      await signOut();
+                      console.log("[Logout] SignOut successful");
+                    } catch (e) {
+                      console.error("[Logout] SignOut failed:", e);
+                      toast.error("Logout failed");
+                    }
                   }}
                   className="flex-row items-center px-4 py-3.5 m-2 rounded-xl bg-destructive/10 active:bg-destructive/20 border border-destructive/20"
                 >
@@ -474,7 +519,7 @@ export default function HomeScreen() {
                   </Text>
                 </View>
                 {!isActive && (
-                  <Pressable 
+                  <Pressable
                     onPress={() => {
                       setCurrentActivity(null);
                       toast.success("Task cleared");
@@ -669,11 +714,24 @@ export default function HomeScreen() {
                     <Text className="text-muted-foreground text-xs font-sans mt-0.5">{activity.date}</Text>
                   </View>
                 </View>
-                <View className="items-end">
-                  <Text className="text-foreground font-bold text-[15px] font-sans">{activity.hours}h</Text>
-                  <View className="bg-primary/10 mt-1 px-2 py-0.5 rounded-full">
-                    <Text className="text-primary text-[10px] font-bold uppercase font-sans">Finished</Text>
+                <View className="flex-row items-center gap-x-3">
+                  <View className="items-end">
+                    <Text className="text-foreground font-bold text-[15px] font-sans">{activity.hours}h</Text>
+                    <View className="bg-primary/10 mt-1 px-2 py-0.5 rounded-full">
+                      <Text className="text-primary text-[10px] font-bold uppercase font-sans">
+                        {activity.taskStatus?.toLowerCase() === 'completed' ? 'Verified' : 'Finished'}
+                      </Text>
+                    </View>
                   </View>
+
+                  {activity.taskStatus?.toLowerCase() !== 'completed' && (
+                    <Pressable
+                      onPress={() => handleDeleteLog(activity.id, activity.taskStatus)}
+                      className="w-10 h-10 rounded-full bg-destructive/10 active:bg-destructive/20 items-center justify-center"
+                    >
+                      <Icon as={Trash2} size={18} className="text-destructive" />
+                    </Pressable>
+                  )}
                 </View>
               </Pressable>
             ))

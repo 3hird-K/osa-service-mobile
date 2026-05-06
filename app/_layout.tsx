@@ -70,6 +70,20 @@ export default function RootLayout() {
 
 function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | undefined }) {
   const { isSignedIn, isLoaded } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  React.useEffect(() => {
+    if (!isLoaded) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (!isSignedIn && !inAuthGroup) {
+      router.replace('/(auth)/sign-in');
+    } else if (isSignedIn && inAuthGroup) {
+      router.replace('/(tabs)');
+    }
+  }, [isSignedIn, segments, isLoaded]);
 
   if (!isLoaded) {
     return null;
