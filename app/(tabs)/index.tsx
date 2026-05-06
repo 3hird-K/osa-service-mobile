@@ -4,7 +4,7 @@ import { Text } from '@/components/ui/text';
 import { AlertDialog } from '@/components/ui/alert-dialog';
 import { useUser, useAuth } from '@clerk/clerk-expo';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
-import { Calendar, Camera, Play, Coffee, User, ChevronRight, LogOut, WifiOff, Bell, Plus, QrCode } from 'lucide-react-native';
+import { Calendar, Camera, Play, Coffee, User, ChevronRight, LogOut, WifiOff, Bell, Plus, QrCode, X } from 'lucide-react-native';
 import * as React from 'react';
 import { ScrollView, View, Image, Pressable, RefreshControl, Modal, Alert } from 'react-native';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -14,6 +14,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { notifyLogout } from '@/hooks/useHeartbeat';
 import { loadCache, saveCache } from '@/hooks/useOfflineStorage';
+import { toast } from 'sonner-native';
 
 type Activity = {
   id: string;
@@ -29,6 +30,7 @@ type ScannedTask = {
   description: string;
   location: string;
   hours: string | number;
+  status?: string;
   assignee_id: string;
 };
 
@@ -121,7 +123,14 @@ export default function HomeScreen() {
     if (params.scannedTask) {
       try {
         const parsed = JSON.parse(params.scannedTask);
-        setCurrentActivity(parsed);
+        
+        if (parsed.status?.toLowerCase() === 'completed') {
+          setCurrentActivity(null);
+          toast.error("This task is already completed!");
+        } else {
+          setCurrentActivity(parsed);
+          toast.success("Task scanned!");
+        }
       } catch (e) {
         // Fallback for legacy ID-only QR codes
         setCurrentActivity({
@@ -133,7 +142,7 @@ export default function HomeScreen() {
           assignee_id: user?.id || ""
         });
       }
-      setIsActive(false); // Reset session if they scan a new one
+      setIsActive(false); 
       setSessionStartedAt(null);
       setProofImages([]);
     }
@@ -253,12 +262,13 @@ export default function HomeScreen() {
         setIsActive(true);
         setSessionStartedAt(Date.now());
         setProofImages([]);
+        toast.success("Check-in successful!");
       } else {
-        Alert.alert("Server Error", "Failed to start session on the server.");
+        toast.error("Failed to start session on the server.");
       }
     } catch (e) {
       console.error("Check-in error:", e);
-      Alert.alert("Connection Error", "Check your internet connection and try again.");
+      toast.error("Connection Error: Check your internet.");
     }
   };
 
@@ -279,7 +289,7 @@ export default function HomeScreen() {
       });
 
       if (res.ok) {
-        Alert.alert("Success", "Session saved successfully!");
+        toast.success("Session saved successfully!");
         setIsActive(false);
         setSessionStartedAt(null);
         setElapsedSeconds(0);
@@ -288,7 +298,7 @@ export default function HomeScreen() {
       }
     } catch (e) {
       console.error("Stop error:", e);
-      Alert.alert("Error", "Failed to save session to the server.");
+      toast.error("Failed to save session to the server.");
     }
   };
 
@@ -303,9 +313,10 @@ export default function HomeScreen() {
       });
       if (res.ok) {
         setIsPaused(true);
+        toast.success("On Break");
       }
     } catch (e) {
-      Alert.alert("Error", "Failed to log break.");
+      toast.error("Failed to log break.");
     }
   };
 
@@ -320,9 +331,10 @@ export default function HomeScreen() {
       });
       if (res.ok) {
         setIsPaused(false);
+        toast.success("Back to Work");
       }
     } catch (e) {
-      Alert.alert("Error", "Failed to log resume.");
+      toast.error("Failed to log resume.");
     }
   };
 
@@ -433,10 +445,10 @@ export default function HomeScreen() {
                     if (user?.id) await notifyLogout(user.id);
                     signOut();
                   }}
-                  className="flex-row items-center px-4 py-3.5 rounded-b-2xl"
+                  className="flex-row items-center px-4 py-3.5 m-2 rounded-xl bg-destructive/10 active:bg-destructive/20 border border-destructive/20"
                 >
-                  <Icon as={LogOut} size={18} className="text-muted-foreground mr-3" />
-                  <Text className="text-popover-foreground font-medium font-sans text-[15px]">Logout</Text>
+                  <Icon as={LogOut} size={18} className="text-destructive mr-3" />
+                  <Text className="text-destructive font-bold font-sans text-[15px]">Logout</Text>
                 </Pressable>
               </PopoverContent>
             </Popover>
@@ -452,14 +464,30 @@ export default function HomeScreen() {
               <Skeleton className="h-8 w-full mb-2" />
               <Skeleton className="h-14 w-full rounded-[20px]" />
             </View>
-          ) : currentActivity ? (
+          ) : (currentActivity && currentActivity.status?.toLowerCase() !== 'completed') ? (
             <>
+              <View className="flex-row justify-between items-start mb-4">
+                <View className="flex-1">
+                  <Text className="text-muted-foreground text-[10px] uppercase font-bold tracking-widest mb-1 font-sans">Current Activity</Text>
+                  <Text className="text-foreground text-2xl font-black font-sans tracking-tight" numberOfLines={1}>
+                    {currentActivity.title}
+                  </Text>
+                </View>
+                {!isActive && (
+                  <Pressable 
+                    onPress={() => {
+                      setCurrentActivity(null);
+                      toast.success("Task cleared");
+                    }}
+                    className="w-8 h-8 rounded-full bg-accent items-center justify-center -mr-2"
+                  >
+                    <Icon as={X} size={16} className="text-muted-foreground" />
+                  </Pressable>
+                )}
+              </View>
+
               <View className="mb-4">
-                <Text className="text-muted-foreground text-[10px] uppercase font-bold tracking-widest mb-1 font-sans">Current Activity</Text>
-                <Text className="text-foreground text-2xl font-black font-sans tracking-tight" numberOfLines={1}>
-                  {currentActivity.title}
-                </Text>
-                <Text className="text-muted-foreground text-xs font-sans mt-1" numberOfLines={2}>
+                <Text className="text-muted-foreground text-xs font-sans" numberOfLines={2}>
                   {currentActivity.description}
                 </Text>
                 <View className="flex-row items-center mt-3">
@@ -579,14 +607,13 @@ export default function HomeScreen() {
               )}
             </>
           ) : (
-            <View className="py-12 items-center justify-center rounded-3xl bg-card/30 border border-border/20 shadow-sm overflow-hidden">
-              <View className="absolute inset-0 bg-primary/5 opacity-10" />
-              <View className="w-16 h-16 rounded-full bg-accent items-center justify-center mb-4">
-                <Icon as={QrCode} size={28} className="text-muted-foreground opacity-50" />
+            <View className="py-12 items-center justify-center">
+              <View className="w-20 h-20 rounded-full bg-accent/30 items-center justify-center mb-4 border border-border/20">
+                <Icon as={QrCode} size={32} className="text-muted-foreground opacity-40" />
               </View>
-              <Text className="text-foreground/80 text-lg font-bold font-sans text-center">No Active Session</Text>
-              <Text className="text-muted-foreground text-center font-sans text-xs px-10 leading-4 mt-2">
-                Your current activity will appear here once you scan a task QR code.
+              <Text className="text-foreground text-xl font-black font-sans text-center tracking-tight">No Active Session</Text>
+              <Text className="text-muted-foreground text-center font-sans text-[13px] px-12 leading-5 mt-2">
+                Scan an activity QR code to start tracking your community service hours.
               </Text>
             </View>
           )}

@@ -21,6 +21,7 @@ export default function ScanScreen() {
   const router = useRouter();
   const { user } = useUser();
   const hasScanned = useRef(false);
+  const lastToastTimeRef = useRef(0);
 
   if (!permission) {
     return <View className="flex-1 bg-background" />;
@@ -46,29 +47,33 @@ export default function ScanScreen() {
     hasScanned.current = true;
     setScanned(true);
     
-    console.log("[Scanner] QR Data detected:", data);
-
     try {
-      // 🛠️ Parse the JSON-based QR data
       const parsedData = JSON.parse(data);
-      const taskId = parsedData.id;
       const assigneeId = parsedData.assignee_id;
       const currentUserId = user?.id;
+      const status = parsedData.status;
 
-      console.log("[Scanner] Parsed Task ID:", taskId);
-      console.log("[Scanner] QR Assignee ID:", assigneeId);
-      console.log("[Scanner] My Clerk ID:", currentUserId);
+      const now = Date.now();
+      const throttleToast = (msg: string) => {
+        if (now - lastToastTimeRef.current > 3000) {
+          toast.error(msg);
+          lastToastTimeRef.current = now;
+        }
+      };
 
-      // 🔐 Security Check: Verify if the task belongs to the scanning user
+      // 🔐 Check if task is already completed
+      if (status?.toLowerCase() === "completed") {
+        throttleToast("This task is already completed!");
+        hasScanned.current = false;
+        setScanned(false);
+        return;
+      }
+
+      // 🔐 Security Check: Verify ownership
       if (assigneeId && currentUserId && assigneeId !== currentUserId) {
-        Alert.alert(
-          "Access Denied",
-          `This task is assigned to a different user.\n\nAssigned to: ${assigneeId}\nYour ID: ${currentUserId}`,
-          [{ text: "OK", onPress: () => {
-            hasScanned.current = false;
-            setScanned(false);
-          }}]
-        );
+        throttleToast("Access Denied: This task is assigned to another user.");
+        hasScanned.current = false;
+        setScanned(false);
         return;
       }
 
@@ -79,15 +84,14 @@ export default function ScanScreen() {
       });
 
     } catch (e) {
-      console.log("[Scanner] Parsing failed, treating as legacy ID:", e);
-      // Fallback for plain string IDs (though we want to move away from this)
+      // Fallback for plain string IDs
       router.replace({ 
         pathname: '/', 
         params: { scannedTask: data } 
       });
     }
     
-    // Reset scanned state after a delay
+    // Reset scanned state
     setTimeout(() => {
       hasScanned.current = false;
       setScanned(false);
