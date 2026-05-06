@@ -37,7 +37,7 @@
       "expo-secure-store",
       "expo-web-browser",
       "expo-font",
-      "expo-barcode-scanner"
+      "expo-camera"
     ],
     "experiments": {
       "typedRoutes": true
