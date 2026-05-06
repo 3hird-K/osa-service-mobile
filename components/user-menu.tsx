@@ -4,6 +4,7 @@ import { Icon } from '@/components/ui/icon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Text } from '@/components/ui/text';
 import { useAuth, useUser } from '@clerk/clerk-expo';
+import { notifyLogout } from '@/hooks/useHeartbeat';
 import type { TriggerRef } from '@rn-primitives/popover';
 import { LogOutIcon, PlusIcon, SettingsIcon } from 'lucide-react-native';
 import * as React from 'react';
@@ -16,6 +17,7 @@ export function UserMenu() {
 
   async function onSignOut() {
     popoverTriggerRef.current?.close();
+    if (user?.id) await notifyLogout(user.id);
     await signOut();
   }
 

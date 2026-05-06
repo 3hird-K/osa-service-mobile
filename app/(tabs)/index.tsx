@@ -6,12 +6,13 @@ import { useUser, useAuth } from '@clerk/clerk-expo';
 import { Stack, useRouter } from 'expo-router';
 import { Calendar, Camera, Play, Coffee, User, ChevronRight, LogOut, WifiOff } from 'lucide-react-native';
 import * as React from 'react';
-import { ScrollView, View, Image, Pressable, RefreshControl, Modal } from 'react-native';
+import { ScrollView, View, Image, Pressable, RefreshControl, Modal, Alert } from 'react-native';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { notifyLogout } from '@/hooks/useHeartbeat';
 import { loadCache, saveCache } from '@/hooks/useOfflineStorage';
 
 type Activity = {
@@ -99,6 +100,55 @@ export default function HomeScreen() {
   const [showAllProofs, setShowAllProofs] = React.useState(false);
   const [selectedActivity, setSelectedActivity] = React.useState<Activity | null>(null);
   const [logDetailsDialog, setLogDetailsDialog] = React.useState(false);
+  const [heartbeatStatus, setHeartbeatStatus] = React.useState<'idle' | 'sending' | 'ok' | 'fail'>('idle');
+  const [lastPing, setLastPing] = React.useState<string>('Never');
+
+  const API_URL = 'https://server-osa-service.onrender.com';
+
+  const sendHeartbeat = React.useCallback(async () => {
+    if (!user?.id) {
+      console.log('[Heartbeat] No user ID yet');
+      return;
+    }
+    setHeartbeatStatus('sending');
+    try {
+      console.log(`[Heartbeat] Pinging ${API_URL}/users/${user.id}/heartbeat`);
+      const res = await fetch(`${API_URL}/users/${user.id}/heartbeat`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      });
+      
+      if (res.ok) {
+        setHeartbeatStatus('ok');
+        setLastPing(new Date().toLocaleTimeString());
+      } else {
+        const errorData = await res.text();
+        setHeartbeatStatus('fail');
+        console.error(`[Heartbeat] Server Error (${res.status}):`, errorData);
+        Alert.alert('Status Sync Error', `Server returned ${res.status}. Your user ID might not be registered yet.`);
+      }
+    } catch (err: any) {
+      setHeartbeatStatus('fail');
+      console.error(`[Heartbeat] Network Error:`, err?.message);
+      // Only show alert once to avoid spamming
+      Alert.alert('Connection Error', 'Could not sync your online status. Check your internet connection.');
+    }
+  }, [user?.id]);
+
+  // ─── Heartbeat: mark user as online every 30s ───
+  React.useEffect(() => {
+    if (!user?.id) return;
+
+    // Fire immediately on login
+    sendHeartbeat();
+
+    // Then every 30 seconds
+    const interval = setInterval(sendHeartbeat, 30_000);
+    return () => clearInterval(interval);
+  }, [sendHeartbeat, user?.id]);
 
   const fetchActivities = React.useCallback(async (isRefresh = false) => {
     if (!isRefresh) setIsLoading(true);
@@ -240,6 +290,15 @@ export default function HomeScreen() {
             <Text className="text-foreground font-bold text-3xl font-sans tracking-tight mt-0.5" numberOfLines={1}>
               {user?.username ?? 'Neil Dime'}
             </Text>
+            <Pressable 
+              onPress={sendHeartbeat}
+              className="flex-row items-center gap-2 mt-1 active:opacity-50"
+            >
+              <View className={`w-2 h-2 rounded-full ${heartbeatStatus === 'ok' ? 'bg-green-500' : heartbeatStatus === 'sending' ? 'bg-amber-500 animate-pulse' : 'bg-red-500'}`} />
+              <Text className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">
+                Status: {heartbeatStatus === 'ok' ? `Active (Last: ${lastPing})` : heartbeatStatus === 'sending' ? 'Syncing...' : 'Sync Failed (Tap to retry)'}
+              </Text>
+            </Pressable>
           </View>
           <Popover>
             <PopoverTrigger asChild>
@@ -271,7 +330,10 @@ export default function HomeScreen() {
               </View>
 
               <Pressable
-                onPress={() => signOut()}
+                onPress={async () => {
+                  if (user?.id) await notifyLogout(user.id);
+                  signOut();
+                }}
                 className="flex-row items-center px-4 py-3.5 rounded-b-2xl"
               >
                 <Icon as={LogOut} size={18} className="text-muted-foreground mr-3" />

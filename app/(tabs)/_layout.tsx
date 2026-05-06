@@ -1,4 +1,4 @@
-﻿import * as React from 'react';
+import * as React from 'react';
 import { Tabs } from 'expo-router';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { useColorScheme } from 'nativewind';
@@ -256,7 +256,12 @@ const styles = StyleSheet.create({
     },
 });
 
+import { useHeartbeat } from '@/hooks/useHeartbeat';
+
 export default function TabLayout() {
+    // Start heartbeat — this component only renders when user IS signed in
+    useHeartbeat();
+
     return (
         <Tabs
             initialRouteName="index"
