@@ -32,7 +32,7 @@ export function SignUpForm() {
     password?: string;
   }>({});
 
-  const inputClass = 'rounded-xl border-border/60 bg-muted/50 px-4 py-3.5 font-sans text-[15px] text-foreground';
+  const inputClass = 'rounded-2xl border-border/40 bg-muted/30 px-4 py-3 font-sans text-[15px] text-foreground';
 
   function validateStepOne() {
     const nextError: typeof error = {};
@@ -123,18 +123,18 @@ export function SignUpForm() {
   }
 
   return (
-    <View className="w-full gap-5">
-      <View className="gap-1.5">
-        <Text className="ml-1 font-sans text-sm text-muted-foreground">Step {activeStep} of 2</Text>
+    <View className="w-full gap-4">
+      {/* <View className="gap-2 mb-2">
+        <Text className="ml-1 font-sans text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">Step {activeStep} of 2</Text>
         <View className="flex-row items-center gap-3">
           <View className="flex-1 items-center gap-1.5">
             <View
-              className={`h-9 w-9 items-center justify-center rounded-full border ${
-                activeStep === 1 ? 'border-primary bg-primary' : 'border-border bg-muted'
+              className={`h-8 w-8 items-center justify-center rounded-full border ${
+                activeStep === 1 ? 'border-primary bg-primary' : 'border-border bg-muted/50'
               }`}
             >
               <Text
-                className={`font-sans text-sm font-semibold ${
+                className={`font-sans text-[13px] font-bold ${
                   activeStep === 1 ? 'text-primary-foreground' : 'text-muted-foreground'
                 }`}
               >
@@ -142,22 +142,22 @@ export function SignUpForm() {
               </Text>
             </View>
             <Text
-              className={`font-sans text-xs ${activeStep === 1 ? 'font-medium text-foreground' : 'text-muted-foreground'}`}
+              className={`font-sans text-[11px] uppercase tracking-tight ${activeStep === 1 ? 'font-bold text-foreground' : 'font-medium text-muted-foreground'}`}
             >
               Personal
             </Text>
           </View>
 
-          <View className={`h-0.5 flex-1 rounded-full ${activeStep === 2 ? 'bg-primary' : 'bg-border'}`} />
+          <View className={`h-0.5 flex-1 rounded-full ${activeStep === 2 ? 'bg-primary' : 'bg-border/50'}`} />
 
           <View className="flex-1 items-center gap-1.5">
             <View
-              className={`h-9 w-9 items-center justify-center rounded-full border ${
-                activeStep === 2 ? 'border-primary bg-primary' : 'border-border bg-muted'
+              className={`h-8 w-8 items-center justify-center rounded-full border ${
+                activeStep === 2 ? 'border-primary bg-primary' : 'border-border bg-muted/50'
               }`}
             >
               <Text
-                className={`font-sans text-sm font-semibold ${
+                className={`font-sans text-[13px] font-bold ${
                   activeStep === 2 ? 'text-primary-foreground' : 'text-muted-foreground'
                 }`}
               >
@@ -165,19 +165,19 @@ export function SignUpForm() {
               </Text>
             </View>
             <Text
-              className={`font-sans text-xs ${activeStep === 2 ? 'font-medium text-foreground' : 'text-muted-foreground'}`}
+              className={`font-sans text-[11px] uppercase tracking-tight ${activeStep === 2 ? 'font-bold text-foreground' : 'font-medium text-muted-foreground'}`}
             >
               Credentials
             </Text>
           </View>
         </View>
-      </View>
+      </View> */}
 
       <View className="gap-4">
         {activeStep === 1 ? (
-          <Animated.View key="step-one" entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)} className="gap-4">
+          <Animated.View key="step-one" entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)} className="gap-3.5">
             <View className="gap-1.5">
-              <Text className="ml-1 font-sans text-sm font-medium text-foreground">First Name</Text>
+              <Text className="ml-1 font-sans text-[13px] font-semibold text-foreground/70">First Name</Text>
               <Input
                 id="firstName"
                 placeholder="John"
@@ -194,7 +194,7 @@ export function SignUpForm() {
             </View>
 
             <View className="gap-1.5">
-              <Text className="ml-1 font-sans text-sm font-medium text-foreground">Last Name</Text>
+              <Text className="ml-1 font-sans text-[13px] font-semibold text-foreground/70">Last Name</Text>
               <Input
                 ref={lastNameRef}
                 id="lastName"
@@ -212,7 +212,7 @@ export function SignUpForm() {
             </View>
 
             <View className="gap-1.5">
-              <Text className="ml-1 font-sans text-sm font-medium text-foreground">Username</Text>
+              <Text className="ml-1 font-sans text-[13px] font-semibold text-foreground/70">Username</Text>
               <Input
                 ref={usernameRef}
                 id="username"
@@ -229,15 +229,15 @@ export function SignUpForm() {
               {error.username ? <Text className="ml-1 text-xs font-medium text-destructive">{error.username}</Text> : null}
             </View>
 
-            <Button className="mt-2 w-full rounded-xl bg-primary py-4" onPress={goToNextStep}>
-              <Text className="font-sans text-[15px] font-semibold text-primary-foreground">Next</Text>
+            <Button className="mt-2 w-full rounded-2xl bg-primary py-3.5 shadow-lg shadow-primary/25 active:scale-[0.98]" onPress={goToNextStep}>
+              <Text className="font-sans text-[16px] font-bold text-primary-foreground">Next</Text>
               <Icon as={ArrowRight} size={18} className="text-primary-foreground" />
             </Button>
           </Animated.View>
         ) : (
-          <Animated.View key="step-two" entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)} className="gap-4">
+          <Animated.View key="step-two" entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)} className="gap-3.5">
             <View className="gap-1.5">
-              <Text className="ml-1 font-sans text-sm font-medium text-foreground">Email Address</Text>
+              <Text className="ml-1 font-sans text-[13px] font-semibold text-foreground/70">Email Address</Text>
               <Input
                 ref={emailRef}
                 id="email"
@@ -256,7 +256,7 @@ export function SignUpForm() {
             </View>
 
             <View className="gap-1.5">
-              <Text className="ml-1 font-sans text-sm font-medium text-foreground">Password</Text>
+              <Text className="ml-1 font-sans text-[13px] font-semibold text-foreground/70">Password</Text>
               <View className="relative flex-row items-center">
                 <Input
                   ref={passwordInputRef}
@@ -274,20 +274,20 @@ export function SignUpForm() {
                   onPress={() => setPasswordVisible((current) => !current)}
                   className="absolute right-4 h-full justify-center"
                 >
-                  <Icon as={passwordVisible ? EyeOff : Eye} size={18} className="text-muted-foreground" />
+                  <Icon as={passwordVisible ? EyeOff : Eye} size={18} className="text-muted-foreground/60" />
                 </Pressable>
               </View>
               {error.password ? <Text className="ml-1 text-xs font-medium text-destructive">{error.password}</Text> : null}
             </View>
 
             <View className="flex-row gap-3 pt-2">
-              <Button variant="outline" className="flex-1 rounded-xl py-4" onPress={() => setActiveStep(1)}>
-                <Icon as={ArrowLeft} size={18} className="text-foreground" />
-                <Text className="font-sans text-[15px] font-semibold text-foreground">Back</Text>
+              <Button variant="outline" className="flex-1 rounded-2xl py-3.5 border-border/40 bg-background shadow-sm shadow-black/5" onPress={() => setActiveStep(1)}>
+                <Icon as={ArrowLeft} size={18} className="text-foreground/70" />
+                <Text className="font-sans text-[15px] font-bold text-foreground/70">Back</Text>
               </Button>
 
-              <Button className="flex-1 rounded-xl bg-primary py-4" onPress={onSubmit}>
-                <Text className="font-sans text-[15px] font-semibold text-primary-foreground">Create Account</Text>
+              <Button className="flex-1 rounded-2xl bg-primary py-3.5 shadow-lg shadow-primary/25 active:scale-[0.98]" onPress={onSubmit}>
+                <Text className="font-sans text-[15px] font-bold text-primary-foreground">Create Account</Text>
               </Button>
             </View>
           </Animated.View>

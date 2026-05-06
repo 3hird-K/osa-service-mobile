@@ -113,6 +113,7 @@ export default function HomeScreen() {
   const [selectedActivity, setSelectedActivity] = React.useState<Activity | null>(null);
   const [logDetailsDialog, setLogDetailsDialog] = React.useState(false);
   const [heartbeatStatus, setHeartbeatStatus] = React.useState<'idle' | 'sending' | 'ok' | 'fail'>('idle');
+  const [unreadCount, setUnreadCount] = React.useState(0);
   const [lastPing, setLastPing] = React.useState<string>('Never');
 
   const [currentActivity, setCurrentActivity] = React.useState<ScannedTask | null>(null);
@@ -166,13 +167,20 @@ export default function HomeScreen() {
           description: log.task?.description || "",
           taskStatus: log.task?.status || "In Progress"
         }));
-        console.log("[History] Loaded logs:", mappedLogs.length, "Task statuses:", mappedLogs.map((l: any) => l.taskStatus));
         setCompletedActivities(mappedLogs);
         setFromCache(false);
         await saveCache(CACHE_KEY, mappedLogs);
       }
+
+      // Fetch unread notifications count
+      const notifRes = await fetch(`${API_URL}/users/${user.id}/notifications`);
+      if (notifRes.ok) {
+        const notifData = await notifRes.json();
+        const unread = notifData.filter((n: any) => !n.is_read).length;
+        setUnreadCount(unread);
+      }
     } catch (error) {
-      console.error('[History] Fetch failed:', error);
+      console.error('[Home] Fetch failed:', error);
       const cached = await loadCache<Activity[]>(CACHE_KEY);
       if (cached) {
         setCompletedActivities(cached);
@@ -208,6 +216,24 @@ export default function HomeScreen() {
   React.useEffect(() => {
     fetchActivities();
   }, [fetchActivities]);
+
+  // ─── Welcome Notification (Daily) ───
+  React.useEffect(() => {
+    if (!user?.id) return;
+    const triggerWelcome = async () => {
+      try {
+        const today = new Date().toDateString();
+        const lastWelcome = await loadCache<string>('last_welcome_date');
+        if (lastWelcome !== today) {
+          await fetch(`${API_URL}/users/${user.id}/welcome-notification`, { method: 'POST' });
+          await saveCache('last_welcome_date', today);
+        }
+      } catch (e) {
+        console.log('[Welcome] Notif skip');
+      }
+    };
+    triggerWelcome();
+  }, [user?.id]);
 
   // ─── Heartbeat: mark user as online every 30s ───
   React.useEffect(() => {
@@ -447,7 +473,11 @@ export default function HomeScreen() {
             >
               <Icon as={Bell} size={22} className="text-foreground" />
               {/* Notification Badge */}
-              <View className="absolute top-3 right-3 w-2.5 h-2.5 bg-destructive rounded-full border-2 border-card" />
+              {unreadCount > 0 && (
+                <View className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-destructive rounded-full border-2 border-card items-center justify-center">
+                  <Text className="text-white text-[9px] font-bold">{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                </View>
+              )}
             </Pressable>
             <Popover>
               <PopoverTrigger asChild>
