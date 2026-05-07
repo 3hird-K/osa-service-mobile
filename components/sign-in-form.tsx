@@ -1,12 +1,12 @@
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { FloatingLabelInput } from '@/components/ui/floating-label-input';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { useSignIn } from '@clerk/clerk-expo';
 import { Link } from 'expo-router';
 import * as React from 'react';
 import { type TextInput, View, Pressable } from 'react-native';
-import { Eye, EyeOff } from 'lucide-react-native';
+import { Eye, EyeOff, Info } from 'lucide-react-native';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export function SignInForm() {
@@ -34,13 +34,11 @@ export function SignInForm() {
         return;
       }
       if (signInAttempt.status === 'needs_second_factor') {
-        // Prepare email code 2FA
         await signIn.prepareSecondFactor({ strategy: 'email_code' });
         setNeeds2FA(true);
         setError({});
         return;
       }
-      console.error(JSON.stringify(signInAttempt, null, 2));
     } catch (err: any) {
       if (err?.errors) {
         const e = err.errors[0];
@@ -57,7 +55,6 @@ export function SignInForm() {
         setError(isEmailMessage ? { email: err.message } : { password: err.message });
         return;
       }
-      console.error(JSON.stringify(err, null, 2));
     }
   }
 
@@ -74,13 +71,11 @@ export function SignInForm() {
         await setActive({ session: result.createdSessionId });
         return;
       }
-      console.error(JSON.stringify(result, null, 2));
     } catch (err) {
       if (err instanceof Error) {
         setError({ code: err.message });
         return;
       }
-      console.error(JSON.stringify(err, null, 2));
     }
   }
 
@@ -99,20 +94,21 @@ export function SignInForm() {
             <Text className="text-xs text-muted-foreground/60 font-sans ml-1 mb-1">
               A code was sent to your email
             </Text>
-            <Input
-              placeholder="Enter code"
+            <FloatingLabelInput
+              label="Enter code"
               keyboardType="number-pad"
               onChangeText={setCode}
+              value={code}
               returnKeyType="send"
               onSubmitEditing={onVerify2FA}
-              className="rounded-2xl border-border/40 bg-muted/30 px-4 py-3 font-sans text-foreground text-[15px] text-center"
+              className="text-center text-lg"
             />
             {error.code ? (
               <Text className="text-xs font-medium text-destructive ml-1">{error.code}</Text>
             ) : null}
           </View>
-          <Button className="w-full rounded-2xl py-3.5 bg-primary shadow-md shadow-primary/20" onPress={onVerify2FA}>
-            <Text className="text-primary-foreground font-bold font-sans text-[15px]">Verify</Text>
+          <Button className="w-full rounded-xl py-3 bg-primary shadow-sm shadow-primary/20" onPress={onVerify2FA}>
+            <Text className="text-primary-foreground font-bold font-sans text-[16px]">Verify</Text>
           </Button>
           <Pressable onPress={() => { setNeeds2FA(false); setCode(''); setError({}); }}>
             <Text className="text-sm text-primary/80 font-sans font-semibold text-center">Back to sign in</Text>
@@ -120,21 +116,19 @@ export function SignInForm() {
         </>
       ) : (
         <>
-          <View className="gap-3.5">
+          <View className="gap-3">
             <View className="gap-1.5">
-              <Text className="text-[13px] font-semibold text-foreground/70 font-sans ml-1">Email or Username</Text>
-              <Input
+              <FloatingLabelInput
                 id="identifier"
-                placeholder="john@example.com"
+                label="Username or email"
                 keyboardType="default"
                 autoComplete="username"
                 autoCapitalize="none"
                 autoCorrect={false}
+                value={identifier}
                 onChangeText={setIdentifier}
                 onSubmitEditing={onEmailSubmitEditing}
                 returnKeyType="next"
-                submitBehavior="submit"
-                className="rounded-2xl border-border/40 bg-muted/30 px-4 py-3 font-sans text-foreground text-[15px]"
               />
               {error.email ? (
                 <Text className="text-xs font-medium text-destructive ml-1">{error.email}</Text>
@@ -142,42 +136,44 @@ export function SignInForm() {
             </View>
 
             <View className="gap-1.5">
-              <Text className="text-[13px] font-semibold text-foreground/70 font-sans ml-1">Password</Text>
-              <View className="relative flex-row items-center">
-                <Input
-                  ref={passwordInputRef}
-                  id="password"
-                  placeholder="Enter your password"
-                  secureTextEntry={!passwordVisible}
-                  onChangeText={setPassword}
-                  returnKeyType="send"
-                  onSubmitEditing={onSubmit}
-                  className="flex-1 rounded-2xl border-border/40 bg-muted/30 px-4 py-3 font-sans text-foreground text-[15px]"
-                />
-                <Pressable
-                  onPress={() => setPasswordVisible(!passwordVisible)}
-                  className="absolute right-4 h-full justify-center"
-                >
-                  <Icon as={passwordVisible ? EyeOff : Eye} size={18} className="text-muted-foreground/60" />
-                </Pressable>
-              </View>
+              <FloatingLabelInput
+                ref={passwordInputRef}
+                id="password"
+                label="Password"
+                secureTextEntry={!passwordVisible}
+                value={password}
+                onChangeText={setPassword}
+                returnKeyType="send"
+                onSubmitEditing={onSubmit}
+                rightElement={
+                  <Pressable
+                    onPress={() => setPasswordVisible(!passwordVisible)}
+                    className="h-full justify-center"
+                  >
+                    <Icon as={passwordVisible ? EyeOff : Eye} size={20} className="text-muted-foreground/40" />
+                  </Pressable>
+                }
+              />
               {error.password ? (
                 <Text className="text-xs font-medium text-destructive ml-1">{error.password}</Text>
               ) : null}
             </View>
           </View>
 
-          <View className="items-end mt-1">
+          <Button
+            className="w-full rounded-xl py-3.5 bg-primary shadow-md shadow-primary/20 mt-2 active:scale-[0.98]"
+            onPress={onSubmit}
+          >
+            <Text className="text-primary-foreground font-bold font-sans text-[16px]">Log in</Text>
+          </Button>
+
+          <View className="items-center mt-4">
             <Link asChild href={`/(auth)/forgot-password?email=${identifier}` as any}>
               <Pressable className="active:opacity-60">
-                <Text className="text-[13px] text-primary/90 font-sans font-bold">Forgot password?</Text>
+                <Text className="text-[15px] text-foreground font-sans font-semibold">Forgot password?</Text>
               </Pressable>
             </Link>
           </View>
-
-          <Button className="w-full rounded-2xl py-3.5 bg-primary shadow-lg shadow-primary/25 mt-2 active:scale-[0.98]" onPress={onSubmit}>
-            <Text className="text-primary-foreground font-bold font-sans text-[16px]">Sign In</Text>
-          </Button>
         </>
       )}
     </View>

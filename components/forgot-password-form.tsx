@@ -1,5 +1,5 @@
-﻿import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { FloatingLabelInput } from '@/components/ui/floating-label-input';
 import { Text } from '@/components/ui/text';
 import { useSignIn } from '@clerk/clerk-expo';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -41,26 +41,24 @@ export function ForgotPasswordForm() {
 
       <View className="gap-4">
         <View className="gap-1.5">
-          <Text className="text-sm font-medium text-foreground font-sans ml-1">Email</Text>
-          <Input
+          <FloatingLabelInput
             id="email"
-            defaultValue={email}
-            placeholder="you@example.com"
+            value={email}
+            label="Email address"
             keyboardType="email-address"
             autoComplete="email"
             autoCapitalize="none"
             onChangeText={setEmail}
             onSubmitEditing={onSubmit}
             returnKeyType="send"
-            className="rounded-xl border-border/60 bg-muted/50 px-4 py-3.5 font-sans text-foreground text-[15px]"
           />
           {error.email ? (
             <Text className="text-xs font-medium text-destructive ml-1">{error.email}</Text>
           ) : null}
         </View>
 
-        <Button className="w-full rounded-xl py-4 bg-primary" onPress={onSubmit}>
-          <Text className="text-primary-foreground font-semibold font-sans text-[15px]">Send Reset Code</Text>
+        <Button className="w-full rounded-xl py-3.5 bg-primary shadow-md shadow-primary/20" onPress={onSubmit}>
+          <Text className="text-primary-foreground font-bold font-sans text-[16px]">Send Reset Code</Text>
         </Button>
       </View>
     </View>

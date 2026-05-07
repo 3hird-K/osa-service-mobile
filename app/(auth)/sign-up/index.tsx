@@ -1,4 +1,4 @@
-﻿import { SignUpForm } from '@/components/sign-up-form';
+import { SignUpForm } from '@/components/sign-up-form';
 import { View, Pressable, Image } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Text } from '@/components/ui/text';
@@ -11,7 +11,7 @@ export default function SignUpScreen() {
   return (
     <KeyboardAwareScrollView
       className="flex-1 bg-background"
-      contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 60, paddingBottom: 40 }}
+      contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 80, paddingBottom: 40 }}
       contentContainerClassName="px-6 items-center"
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
@@ -19,14 +19,14 @@ export default function SignUpScreen() {
       extraScrollHeight={20}
     >
       {/* Logo / Brand */}
-      <View className="items-center mb-12">
-        <Image
-          source={require('@/assets/images/image.png')}
-          className="w-32 h-32 rounded-2xl mb-5"
-          resizeMode="contain"
-        />
-        <Text className="text-foreground text-3xl font-bold font-sans tracking-tight">Create account</Text>
-        <Text className="text-muted-foreground mt-2 font-sans text-base">Get started with Osa Service</Text>
+      <View className="items-center mb-10">
+        <View className="w-32 h-32 items-center justify-center overflow-hidden">
+          <Image
+            source={require('@/assets/images/image.png')}
+            className="w-24 h-24"
+            resizeMode="contain"
+          />
+        </View>
       </View>
 
       {/* Form */}
@@ -35,11 +35,10 @@ export default function SignUpScreen() {
       </View>
 
       {/* Footer */}
-      <View className="flex-row items-center justify-center mt-8">
-        <Text className="text-muted-foreground font-sans text-sm">Already have an account? </Text>
+      <View className="flex-1 justify-end mt-12 mb-4">
         <Link href="/(auth)/sign-in" asChild>
-          <Pressable>
-            <Text className="text-primary font-sans font-semibold text-sm">Sign In</Text>
+          <Pressable className="border border-border/60 rounded-xl px-10 py-3 active:bg-muted/30 shadow-sm shadow-black/5 bg-background">
+            <Text className="text-foreground/80 font-sans font-bold text-[15px]">Back to log in</Text>
           </Pressable>
         </Link>
       </View>

@@ -1,5 +1,5 @@
-﻿import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { FloatingLabelInput } from '@/components/ui/floating-label-input';
 import { Text } from '@/components/ui/text';
 import { useSignIn } from '@clerk/clerk-expo';
 import * as React from 'react';
@@ -49,16 +49,14 @@ export function ResetPasswordForm() {
 
       <View className="gap-4">
         <View className="gap-1.5">
-          <Text className="text-sm font-medium text-foreground font-sans ml-1">New Password</Text>
-          <Input
+          <FloatingLabelInput
             id="password"
-            placeholder="Enter new password"
+            label="New password"
+            value={password}
             secureTextEntry
             onChangeText={setPassword}
             returnKeyType="next"
-            submitBehavior="submit"
             onSubmitEditing={onPasswordSubmitEditing}
-            className="rounded-xl border-border/60 bg-muted/50 px-4 py-3.5 font-sans text-foreground text-[15px]"
           />
           {error.password ? (
             <Text className="text-xs font-medium text-destructive ml-1">{error.password}</Text>
@@ -66,11 +64,11 @@ export function ResetPasswordForm() {
         </View>
 
         <View className="gap-1.5">
-          <Text className="text-sm font-medium text-foreground font-sans ml-1">Verification Code</Text>
-          <Input
+          <FloatingLabelInput
             ref={codeInputRef}
             id="code"
-            placeholder="000000"
+            label="Verification code"
+            value={code}
             autoCapitalize="none"
             onChangeText={setCode}
             returnKeyType="send"
@@ -78,15 +76,15 @@ export function ResetPasswordForm() {
             autoComplete="sms-otp"
             textContentType="oneTimeCode"
             onSubmitEditing={onSubmit}
-            className="rounded-xl border-border/60 bg-muted/50 px-4 py-3.5 font-sans text-foreground text-center text-lg tracking-[0.3em]"
+            className="text-center text-lg tracking-[0.3em]"
           />
           {error.code ? (
             <Text className="text-xs font-medium text-destructive ml-1">{error.code}</Text>
           ) : null}
         </View>
 
-        <Button className="w-full rounded-xl py-4 bg-primary mt-2" onPress={onSubmit}>
-          <Text className="text-primary-foreground font-semibold font-sans text-[15px]">Reset Password</Text>
+        <Button className="w-full rounded-xl py-3.5 bg-primary shadow-md shadow-primary/20 mt-2" onPress={onSubmit}>
+          <Text className="text-primary-foreground font-bold font-sans text-[16px]">Reset Password</Text>
         </Button>
       </View>
     </View>
