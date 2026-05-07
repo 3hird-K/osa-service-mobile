@@ -35,61 +35,14 @@ type ScannedTask = {
   assignee_id: string;
 };
 
-const CACHE_KEY = 'cache:home_activities';
+import { useQuery } from '@tanstack/react-query';
 
-// Default mock data (also used as the first write to cache)
-const MOCK_ACTIVITIES: Activity[] = [
-  {
-    id: '1',
-    name: 'Cafeteria',
-    hours: 2,
-    date: 'March 07, 2026',
-    description: 'Prepared stations for lunch rush and helped restock utensils during peak hours.',
-  },
-  {
-    id: '2',
-    name: 'Fitness Gym',
-    hours: 1.5,
-    date: 'March 06, 2026',
-    description: 'Assisted with equipment checks and guided members through machine sanitation flow.',
-  },
-  {
-    id: '3',
-    name: 'Library Assistance',
-    hours: 2,
-    date: 'March 05, 2026',
-    description: 'Supported shelving tasks, desk inquiries, and catalog updates in Building 23 - 3rd Floor.',
-  },
-  {
-    id: '4',
-    name: 'Cafeteria',
-    hours: 2,
-    date: 'March 04, 2026',
-    description: 'Managed serving line organization and logged end-of-shift inventory counts.',
-  },
-  {
-    id: '5',
-    name: 'Fitness Gym',
-    hours: 1.5,
-    date: 'March 03, 2026',
-    description: 'Monitored check-ins and assisted with floor clean-up and weight area arrangement.',
-  },
-  {
-    id: '6',
-    name: 'Library Assistance',
-    hours: 2,
-    date: 'March 02, 2026',
-    description: 'Handled circulation desk support and directed students to reserved study sections.',
-  },
-];
+const CACHE_KEY = 'cache:home_activities';
+const API_URL = 'https://server-osa-service.onrender.com';
 
 const formatDuration = (totalSeconds: number) => {
-  const hrs = Math.floor(totalSeconds / 3600)
-    .toString()
-    .padStart(2, '0');
-  const mins = Math.floor((totalSeconds % 3600) / 60)
-    .toString()
-    .padStart(2, '0');
+  const hrs = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
+  const mins = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
   const secs = (totalSeconds % 60).toString().padStart(2, '0');
   return `${hrs}:${mins}:${secs}`;
 };
@@ -100,10 +53,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { isOnline } = useNetworkStatus();
   const [isActive, setIsActive] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
-  const [completedActivities, setCompletedActivities] = React.useState<Activity[]>([]);
-  const [fromCache, setFromCache] = React.useState(false);
   const [sessionStartedAt, setSessionStartedAt] = React.useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = React.useState(0);
   const [proofImages, setProofImages] = React.useState<string[]>([]);
@@ -113,7 +63,6 @@ export default function HomeScreen() {
   const [selectedActivity, setSelectedActivity] = React.useState<Activity | null>(null);
   const [logDetailsDialog, setLogDetailsDialog] = React.useState(false);
   const [heartbeatStatus, setHeartbeatStatus] = React.useState<'idle' | 'sending' | 'ok' | 'fail'>('idle');
-  const [unreadCount, setUnreadCount] = React.useState(0);
   const [lastPing, setLastPing] = React.useState<string>('Never');
 
   const [currentActivity, setCurrentActivity] = React.useState<ScannedTask | null>(null);
@@ -121,11 +70,11 @@ export default function HomeScreen() {
   const [isPaused, setIsPaused] = React.useState(false);
   const params = useLocalSearchParams<{ scannedTask?: string }>();
 
+  // ─── Scanned Task Effect ───
   React.useEffect(() => {
     if (params.scannedTask) {
       try {
         const parsed = JSON.parse(params.scannedTask);
-
         if (parsed.status?.toLowerCase() === 'completed') {
           setCurrentActivity(null);
           toast.error("This task is already completed!");
@@ -134,7 +83,6 @@ export default function HomeScreen() {
           toast.success("Task scanned!");
         }
       } catch (e) {
-        // Fallback for legacy ID-only QR codes
         setCurrentActivity({
           id: params.scannedTask,
           title: "General Task",
@@ -150,47 +98,65 @@ export default function HomeScreen() {
     }
   }, [params.scannedTask, user?.id]);
 
-  const API_URL = 'https://server-osa-service.onrender.com';
+  // ─── TanStack Queries ──────────────────────────────────────────
+  
+  // 1. Notifications Query (Shared with NotificationsScreen)
+  const { data: notifications = [] } = useQuery({
+    queryKey: ['notifications', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const res = await fetch(`${API_URL}/users/${user.id}/notifications`);
+      if (!res.ok) throw new Error('Notif fetch failed');
+      return res.json();
+    },
+    enabled: !!user?.id,
+    refetchInterval: 10000, // Sync every 10s
+  });
 
-  const fetchActivities = React.useCallback(async (silent = false) => {
-    if (!user?.id) return;
-    if (!silent) setIsLoading(true);
-    try {
+  const unreadCount = notifications.filter((n: any) => !n.is_read).length;
+
+  // 2. Activities Query
+  const { 
+    data: completedActivities = [], 
+    isLoading, 
+    refetch: refetchActivities,
+    isRefetching
+  } = useQuery({
+    queryKey: ['activities', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
       const res = await fetch(`${API_URL}/users/${user.id}/logs`);
-      if (res.ok) {
-        const data = await res.json();
-        const mappedLogs = data.map((log: any) => ({
-          id: log.id,
-          name: log.task?.title || "Unknown Task",
-          date: new Date(log.date).toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' }),
-          hours: parseFloat(log.hours || "0"),
-          description: log.task?.description || "",
-          taskStatus: log.task?.status || "In Progress"
-        }));
-        setCompletedActivities(mappedLogs);
-        setFromCache(false);
-        await saveCache(CACHE_KEY, mappedLogs);
-      }
+      if (!res.ok) throw new Error('Logs fetch failed');
+      const data = await res.json();
+      const mappedLogs = data.map((log: any) => ({
+        id: log.id,
+        name: log.task?.title || "Unknown Task",
+        date: new Date(log.date).toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' }),
+        hours: parseFloat(log.hours || "0"),
+        description: log.task?.description || "",
+        taskStatus: log.task?.status || "In Progress"
+      })).reverse();
+      
+      saveCache(CACHE_KEY, mappedLogs);
+      return mappedLogs;
+    },
+    enabled: !!user?.id,
+  });
 
-      // Fetch unread notifications count
-      const notifRes = await fetch(`${API_URL}/users/${user.id}/notifications`);
-      if (notifRes.ok) {
-        const notifData = await notifRes.json();
-        const unread = notifData.filter((n: any) => !n.is_read).length;
-        setUnreadCount(unread);
+  const [fromCache, setFromCache] = React.useState(false);
+
+  // Load cached activities on mount if query is empty
+  React.useEffect(() => {
+    const loadCachedData = async () => {
+      if (completedActivities.length === 0) {
+        const cached = await loadCache<Activity[]>(CACHE_KEY);
+        if (cached) {
+          setFromCache(true);
+        }
       }
-    } catch (error) {
-      console.error('[Home] Fetch failed:', error);
-      const cached = await loadCache<Activity[]>(CACHE_KEY);
-      if (cached) {
-        setCompletedActivities(cached);
-        setFromCache(true);
-      }
-    } finally {
-      setIsLoading(false);
-      setRefreshing(false);
-    }
-  }, [user?.id]);
+    };
+    loadCachedData();
+  }, [completedActivities.length]);
 
   const sendHeartbeat = React.useCallback(async () => {
     if (!user?.id) return;
@@ -211,11 +177,6 @@ export default function HomeScreen() {
       setHeartbeatStatus('fail');
     }
   }, [user?.id]);
-
-  // ─── Initial Load & History ───
-  React.useEffect(() => {
-    fetchActivities();
-  }, [fetchActivities]);
 
   // ─── Welcome Notification (Daily) ───
   React.useEffect(() => {
@@ -256,9 +217,8 @@ export default function HomeScreen() {
   }, [isActive, sessionStartedAt]);
 
   const onRefresh = React.useCallback(() => {
-    setRefreshing(true);
-    fetchActivities(true);
-  }, [fetchActivities]);
+    refetchActivities();
+  }, [refetchActivities]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -267,7 +227,7 @@ export default function HomeScreen() {
     return 'Good Evening,';
   };
 
-  const totalHoursRendered = completedActivities.reduce((acc, curr) => acc + curr.hours, 0);
+  const totalHoursRendered = completedActivities.reduce((acc: number, curr: Activity) => acc + curr.hours, 0);
   const [breakDialog, setBreakDialog] = React.useState(false);
 
   const handleCheckIn = async () => {
@@ -323,7 +283,7 @@ export default function HomeScreen() {
         setSessionStartedAt(null);
         setElapsedSeconds(0);
         setActiveLogId(null);
-        fetchActivities(true); // Refresh history
+        refetchActivities(); // Refresh history
       }
     } catch (e) {
       console.error("Stop error:", e);
@@ -388,7 +348,7 @@ export default function HomeScreen() {
               });
               if (res.ok) {
                 toast.success("Log removed");
-                fetchActivities(true);
+                refetchActivities();
               } else {
                 const err = await res.json();
                 toast.error(err.detail || "Failed to delete");
@@ -441,7 +401,7 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingBottom: 120 }}
         className="px-5 pt-2 mt-2"
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />}
       >
         {/* Header Section */}
         <View className="flex-row items-center justify-between mb-8 mt-2 px-1">
@@ -729,7 +689,7 @@ export default function HomeScreen() {
               ))}
             </View>
           ) : (
-            completedActivities.map((activity, index) => (
+            completedActivities.slice(0, 3).map((activity: Activity, index: number) => (
               <Pressable
                 key={activity.id}
                 onPress={() => openLogDetails(activity)}

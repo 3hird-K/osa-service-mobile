@@ -7,6 +7,7 @@ type IconProps = LucideProps & {
 };
 
 function IconImpl({ as: IconComponent, ...props }: IconProps) {
+  if (!IconComponent) return null;
   return <IconComponent {...props} />;
 }
 

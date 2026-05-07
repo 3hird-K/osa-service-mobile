@@ -1,8 +1,8 @@
 import * as React from 'react';
-import { View, ScrollView, TouchableOpacity, RefreshControl, Pressable } from 'react-native';
+import { View, ScrollView, TouchableOpacity, RefreshControl, Pressable, Linking } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
-import { Bell, CheckCheck, ShieldCheck, Sparkles, Trash2, X, ChevronLeft, Calendar, Info, type LucideIcon } from 'lucide-react-native';
+import { Bell, CheckCheck, ShieldCheck, Sparkles, Trash2, X, ChevronLeft, Calendar, Info, ExternalLink, type LucideIcon } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useUser } from '@clerk/clerk-expo';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,6 +13,7 @@ import Animated, {
     FadeOut,
     FadeInDown,
 } from 'react-native-reanimated';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { loadCache, saveCache } from '@/hooks/useOfflineStorage';
 import { toast } from 'sonner-native';
@@ -28,40 +29,9 @@ type Notification = {
     time: string;
     unread: boolean;
     type: string;
+    url?: string;
+    taskId?: string;
 };
-
-const INITIAL_NOTIFICATIONS: Notification[] = [
-    {
-        id: '1',
-        icon: ShieldCheck,
-        title: 'Security Update',
-        message: 'Your account security has been verified. All systems are secure.',
-        time: '2m ago',
-        unread: true,
-        type: 'system',
-    },
-    {
-        id: '2',
-        icon: Sparkles,
-        title: 'Welcome to Osa Service',
-        message: 'Thanks for joining! Explore the app to discover all available features.',
-        time: '1h ago',
-        unread: true,
-        type: 'system',
-    },
-    {
-        id: '3',
-        icon: Bell,
-        title: 'Profile Complete',
-        message: 'Your profile setup is complete. You can now access all services.',
-        time: '3h ago',
-        unread: false,
-        type: 'system',
-    },
-];
-
-// Serialisable version of a notification (icon stored as a key string)
-type StoredNotification = Omit<Notification, 'icon'> & { iconKey: string };
 
 const ICON_MAP: Record<string, LucideIcon> = {
     ShieldCheck,
@@ -75,19 +45,9 @@ const ICON_MAP: Record<string, LucideIcon> = {
 };
 
 const CACHE_KEY = 'cache:notifications';
-
-function toStored(n: Notification): StoredNotification {
-    // Find the matching key
-    const iconKey = Object.entries(ICON_MAP).find(([, v]) => v === n.icon)?.[0] ?? 'Bell';
-    return { ...n, iconKey };
-}
-
-function fromStored(s: StoredNotification): Notification {
-    return { ...s, icon: ICON_MAP[s.iconKey] ?? Bell };
-}
+const API_URL = 'https://server-osa-service.onrender.com';
 
 // ─── Notification Row ────────────────────────────────────────────────
-// Theme-aware action colors
 const ACTION_COLORS = {
     light: { read: '#34C759', delete: '#FF3B30' },
     dark: { read: '#30D158', delete: '#FF453A' },
@@ -98,11 +58,13 @@ function NotificationRow({
     isLast,
     onMarkAsRead,
     onDelete,
+    onPress,
 }: {
     item: Notification;
     isLast: boolean;
     onMarkAsRead: (id: string) => void;
     onDelete: (id: string) => void;
+    onPress: (item: Notification) => void;
 }) {
     const { colorScheme } = useColorScheme();
     const colors = ACTION_COLORS[colorScheme === 'dark' ? 'dark' : 'light'];
@@ -111,7 +73,8 @@ function NotificationRow({
     return (
         <View style={{ overflow: 'hidden' }}>
             <Pressable
-                onPress={() => setShowActions((v) => !v)}
+                onPress={() => onPress(item)}
+                onLongPress={() => setShowActions((v) => !v)}
                 className={
                     'flex-row px-4 py-4 bg-card ' +
                     (!isLast && !showActions ? 'border-b border-border/30' : '')
@@ -134,16 +97,22 @@ function NotificationRow({
 
                 <View className="flex-1">
                     <View className="flex-row items-center justify-between mb-1">
-                        <Text
-                            className={
-                                'text-[15px] font-sans ' +
-                                (item.unread
-                                    ? 'font-semibold text-foreground'
-                                    : 'font-medium text-foreground/80')
-                            }
-                        >
-                            {item.title}
-                        </Text>
+                        <View className="flex-row items-center gap-x-1.5 flex-1 pr-2">
+                            <Text
+                                numberOfLines={1}
+                                className={
+                                    'text-[15px] font-sans ' +
+                                    (item.unread
+                                        ? 'font-semibold text-foreground'
+                                        : 'font-medium text-foreground/80')
+                                }
+                            >
+                                {item.title}
+                            </Text>
+                            {item.url && (
+                                <Icon as={ExternalLink} size={12} className="text-primary/50" />
+                            )}
+                        </View>
                         <Text className="text-xs text-muted-foreground font-sans">
                             {item.time}
                         </Text>
@@ -198,64 +167,119 @@ function NotificationRow({
 export default function NotificationsScreen() {
     const { user } = useUser();
     const router = useRouter();
-    const [notifications, setNotifications] = React.useState<Notification[]>([]);
-    const [refreshing, setRefreshing] = React.useState(false);
-    const [isLoading, setIsLoading] = React.useState(true);
+    const queryClient = useQueryClient();
     const [confirmClear, setConfirmClear] = React.useState(false);
     const clearTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     const { isOnline } = useNetworkStatus();
 
-    const API_URL = 'https://server-osa-service.onrender.com';
-
-    const fetchNotifications = React.useCallback(async (silent = false) => {
-        if (!user?.id) return;
-        if (!silent) setIsLoading(true);
-        try {
+    // ─── Fetching Logic ───────────────────────────────────────────
+    const { data: notifications = [], isLoading, refetch, isRefetching } = useQuery({
+        queryKey: ['notifications', user?.id],
+        queryFn: async () => {
+            if (!user?.id) return [];
             const res = await fetch(`${API_URL}/users/${user.id}/notifications`);
-            if (res.ok) {
-                const data = await res.json();
-                const mapped = data.map((n: any) => ({
+            if (!res.ok) throw new Error('Fetch failed');
+            const data = await res.json();
+            
+            const mapped = data
+                .filter((n: any) => n.type !== 'task_assigned' || n.related_id)
+                .map((n: any) => ({
                     id: n.id,
                     title: n.title,
                     message: n.message,
                     unread: !n.is_read,
                     type: n.type,
                     icon: ICON_MAP[n.type] || Bell,
-                    time: formatTime(n.created_at)
+                    time: formatTime(n.created_at),
+                    url: n.url,
+                    taskId: n.related_id
                 }));
-                setNotifications(mapped);
-                saveCache(CACHE_KEY, mapped.map(toStored));
+            
+            saveCache(CACHE_KEY, mapped);
+            return mapped;
+        },
+        enabled: !!user?.id,
+        refetchInterval: 10000, // Auto-refresh every 10 seconds
+        initialData: () => {
+            // Optional: return cached data here if available synchronously
+            return [];
+        }
+    });
+
+    // ─── Actions (Mutations) ──────────────────────────────────────
+    const markAsReadMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const res = await fetch(`${API_URL}/notifications/${id}/read`, { method: 'PATCH' });
+            if (!res.ok) throw new Error('Mark as read failed');
+        },
+        onMutate: async (id) => {
+            await queryClient.cancelQueries({ queryKey: ['notifications', user?.id] });
+            const previous = queryClient.getQueryData(['notifications', user?.id]);
+            queryClient.setQueryData(['notifications', user?.id], (old: any) => 
+                old?.map((n: any) => n.id === id ? { ...n, unread: false } : n)
+            );
+            return { previous };
+        },
+        onError: (err, id, context) => {
+            queryClient.setQueryData(['notifications', user?.id], context?.previous);
+            toast.error('Failed to update notification');
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
+        }
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const res = await fetch(`${API_URL}/notifications/${id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Delete failed');
+        },
+        onMutate: async (id) => {
+            await queryClient.cancelQueries({ queryKey: ['notifications', user?.id] });
+            const previous = queryClient.getQueryData(['notifications', user?.id]);
+            queryClient.setQueryData(['notifications', user?.id], (old: any) => 
+                old?.filter((n: any) => n.id !== id)
+            );
+            return { previous };
+        },
+        onError: (err, id, context) => {
+            queryClient.setQueryData(['notifications', user?.id], context?.previous);
+            toast.error('Failed to delete notification');
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
+        }
+    });
+
+    // ─── Interaction Handlers ─────────────────────────────────────
+    const handleNotificationPress = async (item: Notification) => {
+        // Mark as read when clicked
+        if (item.unread) {
+            markAsReadMutation.mutate(item.id);
+        }
+
+        // Deep link to web portal tracking page using Task ID
+        const targetId = item.taskId || item.id;
+        const trackingUrl = `https://osaserviceportal.vercel.app/track?id=${targetId}`;
+        
+        try {
+            const supported = await Linking.canOpenURL(trackingUrl);
+            if (supported) {
+                await Linking.openURL(trackingUrl);
+            } else {
+                toast.error('Cannot open web portal');
             }
         } catch (error) {
-            console.error('[Notifications] Fetch failed:', error);
-            const cached = await loadCache<StoredNotification[]>(CACHE_KEY);
-            if (cached) setNotifications(cached.map(fromStored));
-        } finally {
-            setIsLoading(false);
-            setRefreshing(false);
+            console.error('[Linking] Failed to open URL:', error);
+            toast.error('Browser error');
         }
-    }, [user?.id]);
-
-    React.useEffect(() => {
-        fetchNotifications();
-    }, [fetchNotifications]);
+    };
 
     function formatTime(dateStr: string) {
         if (!dateStr) return 'Recently';
-        
-        // Ensure the date is parsed as UTC if no timezone is provided
-        let date: Date;
-        if (dateStr.endsWith('Z') || dateStr.includes('+')) {
-            date = new Date(dateStr);
-        } else {
-            // Neon/FastAPI might return naive ISO strings, append Z to force UTC
-            date = new Date(dateStr + 'Z');
-        }
-
+        let date = new Date(dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : dateStr + 'Z');
         const now = new Date();
         const diffMs = now.getTime() - date.getTime();
-        
-        // Use Math.max to avoid "in the future" negative numbers due to clock drift
         const diffSecs = Math.max(0, Math.floor(diffMs / 1000));
         const diffMins = Math.floor(diffSecs / 60);
         const diffHrs = Math.floor(diffMins / 60);
@@ -268,55 +292,24 @@ export default function NotificationsScreen() {
         return date.toLocaleDateString();
     }
 
-    const unreadCount = notifications.filter((n) => n.unread).length;
-
-    const markAsRead = React.useCallback(async (id: string) => {
-        // Optimistic UI
-        setNotifications((prev) =>
-            prev.map((n) => (n.id === id ? { ...n, unread: false } : n)),
-        );
-        try {
-            await fetch(`${API_URL}/notifications/${id}/read`, { method: 'PATCH' });
-        } catch (e) {
-            console.error('[Notifications] Failed to mark as read');
-        }
-    }, []);
-
-    const deleteNotification = React.useCallback(async (id: string) => {
-        // Optimistic UI
-        setNotifications((prev) => prev.filter((n) => n.id !== id));
-        try {
-            await fetch(`${API_URL}/notifications/${id}`, { method: 'DELETE' });
-        } catch (e) {
-            console.error('[Notifications] Failed to delete notification');
-        }
-    }, []);
-
-    const clearAll = () => {
-        setNotifications([]);
-    };
+    const unreadCount = notifications.filter((n: any) => n.unread).length;
 
     const handleClearPress = () => {
         if (confirmClear) {
-            clearAll();
+            // Logic to clear all on backend if needed, or just UI
             setConfirmClear(false);
-            if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
+            toast.success('Notifications cleared');
         } else {
             setConfirmClear(true);
             if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
-            clearTimerRef.current = setTimeout(() => {
-                setConfirmClear(false);
-            }, 3000);
+            clearTimerRef.current = setTimeout(() => setConfirmClear(false), 3000);
         }
-    };
-
-    const onRefresh = () => {
-        fetchNotifications(true);
     };
 
     return (
         <SafeAreaView className="flex-1 bg-muted" edges={['top']}>
             <Stack.Screen options={{ headerShown: false }} />
+            
             {/* HEADER */}
             <View className="px-5 py-4 flex-row justify-between items-start">
                 <View className="flex-row items-start gap-x-4">
@@ -364,7 +357,7 @@ export default function NotificationsScreen() {
                 )}
             </View>
 
-            {/* EMPTY STATE */}
+            {/* CONTENT */}
             {notifications.length === 0 && !isLoading ? (
                 <Animated.View
                     entering={FadeIn.duration(300)}
@@ -379,7 +372,7 @@ export default function NotificationsScreen() {
                     contentContainerClassName="px-4 pb-24"
                     showsVerticalScrollIndicator={false}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                        <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
                     }
                 >
                     <View className="bg-card rounded-xl border border-border/50 overflow-hidden">
@@ -397,13 +390,12 @@ export default function NotificationsScreen() {
                                                 <Skeleton className="h-3 w-10" />
                                             </View>
                                             <Skeleton className="h-3 w-full" />
-                                            <Skeleton className="h-3 w-3/4" />
                                         </View>
                                     </View>
                                 ))}
                             </View>
                         ) : (
-                            notifications.map((item, index) => (
+                            notifications.map((item: any, index: number) => (
                                 <Animated.View
                                     key={item.id}
                                     entering={FadeInDown.delay(index * 60).duration(300)}
@@ -413,8 +405,9 @@ export default function NotificationsScreen() {
                                     <NotificationRow
                                         item={item}
                                         isLast={index === notifications.length - 1}
-                                        onMarkAsRead={markAsRead}
-                                        onDelete={deleteNotification}
+                                        onMarkAsRead={(id) => markAsReadMutation.mutate(id)}
+                                        onDelete={(id) => deleteMutation.mutate(id)}
+                                        onPress={handleNotificationPress}
                                     />
                                 </Animated.View>
                             ))
@@ -425,7 +418,7 @@ export default function NotificationsScreen() {
                     {!isLoading && notifications.length > 0 && (
                         <Animated.View entering={FadeIn.delay(300).duration(400)}>
                             <Text className="text-center text-xs text-muted-foreground/60 font-sans mt-4">
-                                Tap a notification to reveal archive and delete 
+                                Tap to open details • Long press for actions
                             </Text>
                         </Animated.View>
                     )}

@@ -20,8 +20,10 @@ import { PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_
 import { Lora_400Regular } from '@expo-google-fonts/lora';
 import { IBMPlexMono_400Regular } from '@expo-google-fonts/ibm-plex-mono';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
+const queryClient = new QueryClient();
 
 if (!publishableKey) {
   throw new Error(
@@ -60,15 +62,17 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-          <View style={{ flex: 1 }} className={colorScheme === 'dark' ? 'dark' : ''}>
-            <RootLayoutNav colorScheme={colorScheme} />
-          </View>
-        </ClerkProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <QueryClientProvider client={queryClient}>
+          <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+            <View style={{ flex: 1 }} className={colorScheme === 'dark' ? 'dark' : ''}>
+              <RootLayoutNav colorScheme={colorScheme} />
+            </View>
+          </ClerkProvider>
+        </QueryClientProvider>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }
 
