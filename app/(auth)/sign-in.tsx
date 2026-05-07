@@ -7,6 +7,7 @@ import { Link } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthBackground } from '@/components/auth-background';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 
 export default function SignInScreen() {
   const insets = useSafeAreaInsets();
@@ -31,14 +32,23 @@ export default function SignInScreen() {
         {/* Logo / Brand */}
         <Animated.View 
           entering={FadeInDown.duration(800).delay(200).springify()}
-          className="items-center mb-10"
+          className="items-center mb-12"
         >
-          <View className="w-32 h-32 items-center justify-center bg-white rounded-[2rem] shadow-xl shadow-black/5 border border-border/50">
-            <Image
-              source={require('@/assets/images/image.png')}
-              className="w-24 h-24"
-              resizeMode="contain"
-            />
+          <View className="relative">
+            {/* Subtle background glow behind the logo */}
+            <View className="absolute -inset-4 bg-primary/10 blur-2xl rounded-full" />
+            
+            <BlurView 
+              intensity={40} 
+              tint="light"
+              className="w-36 h-36 items-center justify-center rounded-[3.5rem] border border-white/50 overflow-hidden shadow-xl shadow-black/5"
+            >
+              <Image
+                source={require('@/assets/images/image.png')}
+                className="w-28 h-28"
+                resizeMode="contain"
+              />
+            </BlurView>
           </View>
         </Animated.View>
 
