@@ -20,10 +20,10 @@ const TAB_ITEMS: Record<string, { icon: any }> = {
     account: { icon: UserRound },
 };
 
-const CIRCLE_SIZE = 56;
-const BAR_HEIGHT = 65;
-const CIRCLE_RAISE = 2;
-const SPRING = { damping: 16, stiffness: 140, mass: 0.85 };
+const CIRCLE_SIZE = 48;
+const BAR_HEIGHT = 58;
+const CIRCLE_RAISE = 4;
+const SPRING = { damping: 18, stiffness: 150, mass: 0.8 };
 
 /* ── Floating circle tab bar ────────────────────────── */
 function FloatingCircleTabBar({ state, descriptors, navigation }: any) {
@@ -40,7 +40,6 @@ function FloatingCircleTabBar({ state, descriptors, navigation }: any) {
         (index: number) => (e: any) => {
             const { x, width } = e.nativeEvent.layout;
             tabCenters.current[index] = x + width / 2;
-            // first layout ‑ snap (no animation)
             if (index === state.index && !isInit.current) {
                 circleX.value = tabCenters.current[index];
                 isInit.current = true;
@@ -49,7 +48,6 @@ function FloatingCircleTabBar({ state, descriptors, navigation }: any) {
         [state.index],
     );
 
-    // Animate circle to active tab
     React.useEffect(() => {
         const cx = tabCenters.current[state.index];
         if (cx !== undefined) {
@@ -57,24 +55,21 @@ function FloatingCircleTabBar({ state, descriptors, navigation }: any) {
         }
     }, [state.index]);
 
-    // Animated circle style (centered on tab)
     const circleAnimStyle = useAnimatedStyle(() => ({
         transform: [
             { translateX: circleX.value - CIRCLE_SIZE / 2 },
         ],
     }));
 
-    // Theme colors
-    const primaryLight = 'hsl(211, 100%, 50%)';
-    const primaryDark = 'hsl(211, 100%, 64%)';
-    const circleBg = isDark ? primaryDark : primaryLight;
-    const inactiveIcon = isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)';
-    const barBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
-    const shadowColor = isDark ? '#000' : 'rgba(0,0,0,0.12)';
+    // Theme-aware colors matching global.css primary (orange-ish)
+    const circleBg = '#f96332'; // Matches 15.4 90.6% 49.8% approximately
+    const inactiveIcon = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)';
+    const barBorder = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
+    const shadowColor = isDark ? '#000' : 'rgba(0,0,0,0.15)';
 
     return (
         <View
-            style={[styles.outerContainer, { bottom: Math.max(insets.bottom, 12), pointerEvents: 'box-none' }]}
+            style={[styles.outerContainer, { bottom: Math.max(insets.bottom, 14), pointerEvents: 'box-none' }]}
         >
             {/* ─── Floating circle (above bar) ─── */}
             <Animated.View
@@ -84,18 +79,17 @@ function FloatingCircleTabBar({ state, descriptors, navigation }: any) {
                     {
                         backgroundColor: circleBg,
                         shadowColor: circleBg,
-                        shadowOpacity: 0.45,
-                        shadowRadius: 14,
-                        shadowOffset: { width: 0, height: 6 },
-                        elevation: 12,
+                        shadowOpacity: 0.5,
+                        shadowRadius: 10,
+                        shadowOffset: { width: 0, height: 4 },
+                        elevation: 10,
                     },
                 ]}
             >
-                {/* Render the active icon white inside the circle */}
                 {state.routes[state.index] && (
                     <Icon
                         as={TAB_ITEMS[state.routes[state.index].name]?.icon ?? Home}
-                        size={24}
+                        size={22}
                         color="#ffffff"
                     />
                 )}

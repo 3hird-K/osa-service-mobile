@@ -35,6 +35,8 @@ export {
   ErrorBoundary,
 } from 'expo-router';
 
+import { View } from 'react-native';
+
 export default function RootLayout() {
   const { colorScheme } = useColorScheme();
 
@@ -61,7 +63,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-          <RootLayoutNav colorScheme={colorScheme} />
+          <View style={{ flex: 1 }} className={colorScheme === 'dark' ? 'dark' : ''}>
+            <RootLayoutNav colorScheme={colorScheme} />
+          </View>
         </ClerkProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -91,36 +95,35 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | undefi
 
   return (
     <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
-      <OfflineBanner />
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-      
-      {/* 🛠️ Conditional Stack: Automatically switches between auth and app screens */}
-      <Stack screenOptions={{ headerShown: false }}>
-        {!isSignedIn ? (
-          // Auth Screens (Only available when logged out)
-          <>
-            <Stack.Screen name="(auth)/sign-in" options={SIGN_IN_SCREEN_OPTIONS} />
-            <Stack.Screen name="(auth)/sign-up" options={SIGN_UP_SCREEN_OPTIONS} />
-            <Stack.Screen name="(auth)/reset-password" options={SIGN_IN_SCREEN_OPTIONS} />
-            <Stack.Screen name="(auth)/forgot-password" options={SIGN_IN_SCREEN_OPTIONS} />
-          </>
-        ) : (
-          // App Screens (Only available when logged in)
-          <>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="edit-profile" options={{ headerShown: false, presentation: 'modal' }} />
-            <Stack.Screen name="account-details" options={{ headerShown: false, presentation: 'modal' }} />
-            <Stack.Screen name="faq" options={{ headerShown: false, presentation: 'modal' }} />
-            <Stack.Screen name="help-support" options={{ headerShown: false, presentation: 'modal' }} />
-            <Stack.Screen name="qr-code" options={{ headerShown: false, presentation: 'modal' }} />
-            <Stack.Screen name="terms-conditions" options={{ headerShown: false, presentation: 'modal' }} />
-            <Stack.Screen name="camera" options={{ headerShown: false, presentation: 'modal' }} />
-          </>
-        )}
-      </Stack>
+      <View style={{ flex: 1 }} className="bg-background">
+        <OfflineBanner />
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        
+        <Stack screenOptions={{ headerShown: false }}>
+          {!isSignedIn ? (
+            <>
+              <Stack.Screen name="(auth)/sign-in" options={SIGN_IN_SCREEN_OPTIONS} />
+              <Stack.Screen name="(auth)/sign-up" options={SIGN_UP_SCREEN_OPTIONS} />
+              <Stack.Screen name="(auth)/reset-password" options={SIGN_IN_SCREEN_OPTIONS} />
+              <Stack.Screen name="(auth)/forgot-password" options={SIGN_IN_SCREEN_OPTIONS} />
+            </>
+          ) : (
+            <>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="edit-profile" options={{ headerShown: false, presentation: 'modal' }} />
+              <Stack.Screen name="account-details" options={{ headerShown: false, presentation: 'modal' }} />
+              <Stack.Screen name="faq" options={{ headerShown: false, presentation: 'modal' }} />
+              <Stack.Screen name="help-support" options={{ headerShown: false, presentation: 'modal' }} />
+              <Stack.Screen name="qr-code" options={{ headerShown: false, presentation: 'modal' }} />
+              <Stack.Screen name="terms-conditions" options={{ headerShown: false, presentation: 'modal' }} />
+              <Stack.Screen name="camera" options={{ headerShown: false, presentation: 'modal' }} />
+            </>
+          )}
+        </Stack>
 
-      <Toaster position="top-center" />
-      <PortalHost />
+        <Toaster position="top-center" />
+        <PortalHost />
+      </View>
     </ThemeProvider>
   );
 }

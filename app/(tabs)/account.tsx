@@ -54,7 +54,7 @@ export default function AccountScreen() {
                 className="pt-2 mt-2"
                 showsVerticalScrollIndicator={false}
             >
-                <View className="px-4 gap-y-8">
+                <View className="px-4 gap-y-6">
 
                     {/* Header */}
                     <View className="flex-row items-center justify-between px-1">
@@ -68,22 +68,22 @@ export default function AccountScreen() {
 
                     {/* Profile Card */}
                     <Link href="/account-details" asChild>
-                        <Pressable className="flex-row items-center bg-card rounded-xl p-4 border border-border/50">
+                        <Pressable className="flex-row items-center bg-card rounded-xl p-3.5 border border-border/50">
                             {imageUrl ? (
                                 <Image
                                     source={{ uri: imageUrl }}
-                                    className="w-14 h-14 rounded-full"
+                                    className="w-[52px] h-[52px] rounded-full"
                                 />
                             ) : (
-                                <View className="w-14 h-14 rounded-full bg-primary/10 items-center justify-center">
+                                <View className="w-[52px] h-[52px] rounded-full bg-primary/10 items-center justify-center">
                                     <Text className="text-primary font-bold text-xl font-sans">
                                         {fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
                                     </Text>
                                 </View>
                             )}
-                            <View className="flex-1 ml-4 gap-y-0.5">
-                                <Text className="font-semibold text-lg text-foreground font-sans">{fullName}</Text>
-                                <Text className="text-muted-foreground text-sm font-sans">{email}</Text>
+                            <View className="flex-1 ml-4 gap-y-0">
+                                <Text className="font-semibold text-[17px] text-foreground font-sans">{fullName}</Text>
+                                <Text className="text-muted-foreground text-[13px] font-sans">{email}</Text>
                             </View>
                             <Icon as={ChevronRight} className="text-muted-foreground size-5" />
                         </Pressable>
@@ -95,7 +95,7 @@ export default function AccountScreen() {
                         <View className="bg-card rounded-xl border border-border/50 overflow-hidden">
                             <SettingsItem icon={User} label="Account Details" href="/account-details" />
                             <SettingsItem icon={QrCode} label="My QR Code" href="/qr-code" />
-                            <View className="flex-row items-center px-4 py-3.5">
+                            <View className="flex-row items-center px-4 py-3">
                                 <View className="w-8 h-8 rounded-lg bg-accent items-center justify-center mr-3">
                                     <Icon as={Moon} className="size-4 text-primary" />
                                 </View>
@@ -134,7 +134,7 @@ function SettingsItem({ icon, label, isLast, href, onPress }: { icon: any; label
     const content = (
         <Pressable
             onPress={onPress}
-            className={'flex-row items-center px-4 py-3.5 ' + borderClass}
+            className={'flex-row items-center px-4 py-3 ' + borderClass}
         >
             <View className="w-8 h-8 rounded-lg bg-accent items-center justify-center mr-3">
                 <Icon as={icon} className="size-4 text-primary" />
