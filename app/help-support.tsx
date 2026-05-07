@@ -1,14 +1,54 @@
-﻿import * as React from 'react';
+import * as React from 'react';
 import { View, ScrollView, Pressable, TextInput } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { ChevronLeft, Mail, PhoneCall, ChevronRight, MessageCircle, Send } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useUser } from '@clerk/clerk-expo';
+
+import { toast } from 'sonner-native';
+
+const API_URL = 'https://server-osa-service.onrender.com';
 
 export default function HelpSupportScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
+    const { user } = useUser();
+    const [message, setMessage] = React.useState('');
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+    const handleSubmit = async () => {
+        if (!message.trim()) {
+            toast.error('Please enter a message');
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const res = await fetch(`${API_URL}/support/message`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: user?.id,
+                    email: user?.primaryEmailAddress?.emailAddress,
+                    message: message
+                }),
+            });
+            
+            if (res.ok) {
+                toast.success('Message sent! We will get back to you soon.');
+                setMessage('');
+            } else {
+                const errorData = await res.json();
+                toast.error(errorData.detail || 'Failed to send message.');
+            }
+        } catch (error) {
+            toast.error('Connection error. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <View className="flex-1 bg-muted">
@@ -69,10 +109,18 @@ export default function HelpSupportScreen() {
                             placeholderTextColor="hsl(var(--muted-foreground))"
                             multiline
                             textAlignVertical="top"
+                            value={message}
+                            onChangeText={setMessage}
                         />
-                        <Pressable className="bg-primary py-3.5 rounded-xl flex-row justify-center items-center mt-4">
+                        <Pressable 
+                            onPress={handleSubmit}
+                            disabled={isSubmitting}
+                            className={`bg-primary py-3.5 rounded-xl flex-row justify-center items-center mt-4 ${isSubmitting ? 'opacity-50' : ''}`}
+                        >
                             <Icon as={Send} className="text-primary-foreground size-4 mr-2" />
-                            <Text className="text-primary-foreground font-semibold text-[15px] font-sans">Submit</Text>
+                            <Text className="text-primary-foreground font-semibold text-[15px] font-sans">
+                                {isSubmitting ? 'Sending...' : 'Submit'}
+                            </Text>
                         </Pressable>
                     </View>
                 </View>
@@ -80,3 +128,4 @@ export default function HelpSupportScreen() {
         </View>
     );
 }
+

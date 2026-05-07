@@ -1,4 +1,4 @@
-﻿import * as React from 'react';
+import * as React from 'react';
 import { ScrollView, View, Pressable } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { ChevronLeft, MessageCircleQuestion } from 'lucide-react-native';
@@ -9,36 +9,36 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 
 const FAQ_DATA = [
     {
-        category: 'Account & Security',
+        category: 'Task Management',
         items: [
             {
-                question: 'How do I change my password?',
-                answer: 'You can change your password by logging out and using the "Forgot Password?" link on the sign-in screen to securely reset it via email.',
+                question: 'How do I start a task session?',
+                answer: 'Simply scan the QR code associated with your assigned task. The app will automatically begin tracking your hours and location.',
             },
             {
-                question: 'Can I update my email address?',
-                answer: 'For security purposes, email addresses cannot be changed directly in the app. Please contact our support team if you need to migrate your account.',
+                question: 'What if I forget to stop my session?',
+                answer: 'If a session is left running, please notify your supervisor immediately. They can manually adjust your time log in the administration portal.',
             },
             {
-                question: 'How is my data protected?',
-                answer: 'We use industry-standard encryption protocols. Your data is never sold to third parties, and authentication is handled securely.',
+                question: 'Can I delete or edit a time log?',
+                answer: 'You can delete logs that are still "In Progress" or "Finished" but not yet "Verified". Once a supervisor verifies a log, it becomes a permanent record.',
             }
         ]
     },
     {
-        category: 'App Usage & Features',
+        category: 'Work Verification',
         items: [
             {
-                question: 'How do I switch to Dark Mode?',
-                answer: 'Navigate to the Account tab and locate the "Preferences" section. You can toggle the Dark Mode switch to immediately change the application theme.',
+                question: 'Why am I required to take photos?',
+                answer: 'Photo proofs are essential for work verification. They provide visual evidence of your progress and help ensure quality standards are met.',
             },
             {
-                question: 'What is the QR Code for?',
-                answer: 'Your personal QR Code acts as a quick digital identifier. Other users can scan it to instantly connect with you.',
+                question: 'How many photos should I capture?',
+                answer: 'We recommend capturing at least 2-3 photos per session: one at the start, one during the work, and one upon completion.',
             },
             {
-                question: 'Are there any hidden fees?',
-                answer: 'No, creating an account and using the standard features of the Osa Service application is entirely free.',
+                question: 'Are my location and data secure?',
+                answer: 'Yes. We only track location data during active sessions to verify work site presence. Your data is encrypted and used only for administrative auditing.',
             }
         ]
     }

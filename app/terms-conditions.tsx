@@ -1,4 +1,4 @@
-﻿import * as React from 'react';
+import * as React from 'react';
 import { View, ScrollView, Pressable } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { ChevronLeft } from 'lucide-react-native';
@@ -9,23 +9,23 @@ import { useRouter } from 'expo-router';
 const SECTIONS = [
     {
         number: '1',
-        title: 'Acceptance of Terms',
-        content: 'By accessing and using this application, you accept and agree to be bound by the terms and provision of this agreement. Furthermore, when using these particular services, you shall be subject to any posted guidelines or rules applicable to such services.',
+        title: 'Work Tracking Compliance',
+        content: 'By using Osa Service, you agree to accurately track your work sessions using the provided QR scanning system. Deliberate falsification of time logs or bypassing the verification process is strictly prohibited.',
     },
     {
         number: '2',
-        title: 'User Account & Security',
-        content: 'You are responsible for safeguarding the password that you use to access the service and for any activities or actions under your password. Osa Service cannot and will not be liable for any loss or damage arising from your failure to comply with the above requirements.',
+        title: 'Evidence & Verification',
+        content: 'Users are required to upload photo proofs during active sessions as evidence of work performed. By uploading these images, you consent to their storage and review by authorized OSA administrators for auditing purposes.',
     },
     {
         number: '3',
-        title: 'Privacy',
-        content: 'Your privacy is very important to us. We designed our Data Management capabilities to make important choices about how you use Osa Service. We encourage you to read the Privacy Policy to understand how your information is handled.',
+        title: 'Location Services',
+        content: 'This application requires access to location services to verify that work is performed at the designated sites. Location data is only recorded during active task sessions and is protected under our data privacy standards.',
     },
     {
         number: '4',
-        title: 'Termination',
-        content: 'We may terminate or suspend access to our Service immediately, without prior notice or liability, for any reason whatsoever, including without limitation if you breach the Terms.',
+        title: 'Account Integrity',
+        content: 'You are responsible for maintaining the security of your credentials. Any logs recorded under your account are considered your responsibility. Osa Service reserves the right to suspend accounts found in violation of these standards.',
     },
 ];
 
