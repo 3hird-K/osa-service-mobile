@@ -1,4 +1,4 @@
-﻿import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { useSignUp } from '@clerk/clerk-expo';
@@ -50,14 +50,6 @@ export function VerifyEmailForm() {
 
   return (
     <View className="gap-5 w-full">
-      <View className="items-center mb-2">
-        <Text className="text-2xl font-bold font-sans text-foreground">Check your email</Text>
-        <Text className="text-muted-foreground mt-2 font-sans text-sm text-center leading-5 px-2">
-          We sent a verification code to{'\n'}
-          <Text className="text-foreground font-semibold font-sans">{email || 'your email'}</Text>
-        </Text>
-      </View>
-
       <View className="gap-4">
         <View className="gap-1.5">
           <Input
@@ -70,15 +62,15 @@ export function VerifyEmailForm() {
             autoComplete="sms-otp"
             textContentType="oneTimeCode"
             onSubmitEditing={onSubmit}
-            className="rounded-xl border-border/60 bg-muted/50 px-4 py-3.5 font-sans text-foreground text-center text-lg tracking-[0.3em]"
+            className="rounded-2xl border-border/60 bg-muted/30 px-4 py-4 font-sans text-foreground text-center text-xl tracking-[0.4em]"
           />
           {error ? (
             <Text className="text-xs font-medium text-destructive text-center">{error}</Text>
           ) : null}
         </View>
 
-        <Button className="w-full rounded-xl py-4 bg-primary" onPress={onSubmit}>
-          <Text className="text-primary-foreground font-semibold font-sans text-[15px]">Verify</Text>
+        <Button className="w-full rounded-2xl py-4 bg-primary shadow-lg shadow-primary/30" onPress={onSubmit}>
+          <Text className="text-primary-foreground font-bold font-sans text-[17px]">Verify</Text>
         </Button>
 
         <View className="items-center mt-2">
@@ -88,7 +80,7 @@ export function VerifyEmailForm() {
             disabled={countdown > 0}
             onPress={onResendCode}
           >
-            <Text className="text-center font-sans font-medium text-primary text-sm">
+            <Text className="text-center font-sans font-semibold text-primary text-[15px]">
               Resend code{countdown > 0 ? ' ' : ''}
               {countdown > 0 ? (
                 <Text className="font-sans font-medium text-primary/60" style={TABULAR_NUMBERS_STYLE}>

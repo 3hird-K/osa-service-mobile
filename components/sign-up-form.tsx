@@ -167,8 +167,8 @@ export function SignUpForm() {
               {error.username ? <Text className="ml-1 text-xs font-medium text-destructive">{error.username}</Text> : null}
             </View>
 
-            <Button className="mt-2 w-full rounded-xl bg-primary py-3.5 shadow-md shadow-primary/20 active:scale-[0.98]" onPress={goToNextStep}>
-              <Text className="font-sans text-[16px] font-bold text-primary-foreground">Next</Text>
+            <Button className="mt-6 w-full rounded-2xl bg-primary py-4 shadow-lg shadow-primary/30 active:scale-[0.98]" onPress={goToNextStep}>
+              <Text className="font-sans text-[17px] font-bold text-primary-foreground">Next</Text>
               <Icon as={ArrowRight} size={18} className="text-primary-foreground" />
             </Button>
           </Animated.View>
@@ -212,13 +212,13 @@ export function SignUpForm() {
               {error.password ? <Text className="ml-1 text-xs font-medium text-destructive">{error.password}</Text> : null}
             </View>
 
-            <View className="flex-row gap-3 pt-2">
-              <Button variant="outline" className="flex-1 rounded-xl py-3 border-border bg-transparent active:bg-muted" onPress={() => setActiveStep(1)}>
+            <View className="flex-row gap-3 pt-6">
+              <Button variant="outline" className="flex-1 rounded-2xl py-4 border-border bg-white active:bg-muted" onPress={() => setActiveStep(1)}>
                 <Icon as={ArrowLeft} size={18} className="text-muted-foreground" />
                 <Text className="font-sans text-[15px] font-bold text-muted-foreground">Back</Text>
               </Button>
 
-              <Button className="flex-1 rounded-xl bg-primary py-3 shadow-md shadow-primary/20 active:scale-[0.98]" onPress={onSubmit}>
+              <Button className="flex-1 rounded-2xl bg-primary py-4 shadow-lg shadow-primary/30 active:scale-[0.98]" onPress={onSubmit}>
                 <Text className="font-sans text-[15px] font-bold text-primary-foreground">Create Account</Text>
               </Button>
             </View>

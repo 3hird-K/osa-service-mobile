@@ -161,16 +161,18 @@ export function SignInForm() {
           </View>
 
           <Button
-            className="w-full rounded-xl py-3.5 bg-primary shadow-md shadow-primary/20 mt-2 active:scale-[0.98]"
+            className="w-full rounded-2xl py-4 bg-primary shadow-lg shadow-primary/30 mt-4 active:scale-[0.98]"
             onPress={onSubmit}
           >
-            <Text className="text-primary-foreground font-bold font-sans text-[16px]">Log in</Text>
+            <Text className="text-primary-foreground font-bold font-sans text-[17px]">Log in</Text>
           </Button>
 
-          <View className="items-center mt-4">
+          <View className="items-center mt-6">
             <Link asChild href={`/(auth)/forgot-password?email=${identifier}` as any}>
-              <Pressable className="active:opacity-60">
-                <Text className="text-[15px] text-foreground font-sans font-semibold">Forgot password?</Text>
+              <Pressable className="active:opacity-60 py-2">
+                <Text className="text-[15px] text-muted-foreground font-sans font-medium">
+                  Forgot password?
+                </Text>
               </Pressable>
             </Link>
           </View>

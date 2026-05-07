@@ -7,6 +7,8 @@ import { ChevronLeft } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
 import { useRouter, Link } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AuthBackground } from '@/components/auth-background';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -14,46 +16,62 @@ export default function ForgotPasswordScreen() {
 
   return (
     <View className="flex-1 bg-background">
+      <AuthBackground />
+      
       {/* Header */}
       <View style={{ paddingTop: insets.top + 8 }} className="px-4 pb-2 z-10">
-        <Pressable onPress={() => router.back()} className="w-10 h-10 items-center justify-center rounded-full active:bg-muted">
-          <Icon as={ChevronLeft} className="text-foreground size-6" />
+        <Pressable onPress={() => router.back()} className="w-10 h-10 items-center justify-center rounded-full bg-white/50 border border-white/50 shadow-sm">
+          <Icon as={ChevronLeft} className="text-primary size-6" />
         </Pressable>
       </View>
 
       <KeyboardAwareScrollView
         className="flex-1"
         contentContainerClassName="px-6 items-center pt-8"
-        contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + 40 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         enableOnAndroid={true}
         extraScrollHeight={20}
       >
         {/* Icon */}
-        <View className="items-center mb-6">
-          <View className="w-32 h-32 items-center justify-center overflow-hidden">
+        <Animated.View 
+          entering={FadeInDown.duration(800).delay(200).springify()}
+          className="items-center mb-10"
+        >
+          <View className="w-32 h-32 items-center justify-center bg-white rounded-[2rem] shadow-xl shadow-black/5 border border-border/50">
             <Image
               source={require('@/assets/images/image.png')}
               className="w-24 h-24"
               resizeMode="contain"
             />
           </View>
-        </View>
+        </Animated.View>
 
-        {/* Form */}
-        <View className="w-full max-w-sm">
+        {/* Form Container */}
+        <Animated.View 
+          entering={FadeInUp.duration(800).delay(400).springify()}
+          className="w-full max-w-sm"
+        >
           <ForgotPasswordForm />
-        </View>
+        </Animated.View>
 
         {/* Footer */}
-        <View className="flex-1 justify-end mt-12 mb-4">
+        <Animated.View 
+          entering={FadeInUp.duration(800).delay(600).springify()}
+          className="flex-1 justify-end mt-12 mb-4 w-full items-center"
+        >
           <Link href="/(auth)/sign-in" asChild>
-            <Pressable className="border border-border/60 rounded-xl px-10 py-3 active:bg-muted/30 shadow-sm shadow-black/5 bg-background">
-              <Text className="text-foreground/80 font-sans font-bold text-[15px]">Back to log in</Text>
+            <Pressable className="flex-row items-center gap-2">
+              <Text className="text-muted-foreground font-sans text-[15px]">
+                Remembered your password?
+              </Text>
+              <Text className="text-primary font-sans font-bold text-[15px]">
+                Log In
+              </Text>
             </Pressable>
           </Link>
-        </View>
+        </Animated.View>
       </KeyboardAwareScrollView>
     </View>
   );
