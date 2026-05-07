@@ -15,6 +15,7 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { notifyLogout } from '@/hooks/useHeartbeat';
 import { loadCache, saveCache } from '@/hooks/useOfflineStorage';
 import { toast } from 'sonner-native';
+import { supabase } from '@/lib/supabase';
 
 type Activity = {
   id: string;
@@ -68,6 +69,7 @@ export default function HomeScreen() {
   const [currentActivity, setCurrentActivity] = React.useState<ScannedTask | null>(null);
   const [activeLogId, setActiveLogId] = React.useState<string | null>(null);
   const [isPaused, setIsPaused] = React.useState(false);
+  const [hasTakenBreak, setHasTakenBreak] = React.useState(false);
   const params = useLocalSearchParams<{ scannedTask?: string }>();
 
   // ─── Scanned Task Effect ───
@@ -190,7 +192,7 @@ export default function HomeScreen() {
           await saveCache('last_welcome_date', today);
         }
       } catch (e) {
-        console.log('[Welcome] Notif skip');
+        // Silent skip for welcome notif
       }
     };
     triggerWelcome();
@@ -249,6 +251,7 @@ export default function HomeScreen() {
         const data = await res.json();
         setActiveLogId(data.id);
         setIsActive(true);
+        setHasTakenBreak(false);
         setSessionStartedAt(Date.now());
         setProofImages([]);
         toast.success("Check-in successful!");
@@ -256,8 +259,7 @@ export default function HomeScreen() {
         toast.error("Failed to start session on the server.");
       }
     } catch (e) {
-      console.error("Check-in error:", e);
-      toast.error("Connection Error: Check your internet.");
+      toast.error("Check-in failed. Please check your connection.");
     }
   };
 
@@ -268,12 +270,44 @@ export default function HomeScreen() {
       const endTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
       const hoursWorked = (elapsedSeconds / 3600).toFixed(2);
 
+      toast.info("Uploading evidence...");
+      
+      // 1. Upload all local images to Supabase
+      const uploadedUrls = await Promise.all(
+        proofImages.map(async (localUri) => {
+          // If it's already a public URL (shouldn't happen now but for safety)
+          if (localUri.startsWith('http')) return localUri;
+
+          const response = await fetch(localUri);
+          const blob = await response.blob();
+          const arrayBuffer = await new Response(blob).arrayBuffer();
+          const fileName = `${user?.id || 'anon'}/${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('proof-captures')
+            .upload(fileName, arrayBuffer, {
+              contentType: 'image/jpeg',
+              upsert: true
+            });
+
+          if (uploadError) throw uploadError;
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('proof-captures')
+            .getPublicUrl(fileName);
+
+          return publicUrl;
+        })
+      );
+
+      // 2. Send final data to backend
       const res = await fetch(`${API_URL}/timelogs/${activeLogId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           end_time: endTime,
-          hours: hoursWorked
+          hours: hoursWorked,
+          evidence_urls: JSON.stringify(uploadedUrls)
         })
       });
 
@@ -283,16 +317,20 @@ export default function HomeScreen() {
         setSessionStartedAt(null);
         setElapsedSeconds(0);
         setActiveLogId(null);
+        setProofImages([]);
         refetchActivities(); // Refresh history
       }
     } catch (e) {
-      console.error("Stop error:", e);
-      toast.error("Failed to save session to the server.");
+      toast.error("Could not save session. Please try again.");
     }
   };
 
   const handleBreak = async () => {
     if (!activeLogId) return;
+    if (hasTakenBreak) {
+      toast.error("Break already used for this session.");
+      return;
+    }
     try {
       const breakTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
       const res = await fetch(`${API_URL}/timelogs/${activeLogId}`, {
@@ -302,6 +340,7 @@ export default function HomeScreen() {
       });
       if (res.ok) {
         setIsPaused(true);
+        setHasTakenBreak(true);
         toast.success("On Break");
       }
     } catch (e) {
@@ -378,11 +417,18 @@ export default function HomeScreen() {
       });
 
       if (!result.canceled && result.assets[0]?.uri) {
+        // Just save the local URI for now
         setProofImages((prev) => [result.assets[0].uri, ...prev].slice(0, 6));
+        toast.success("Image captured");
       }
     } finally {
       setIsTakingProof(false);
     }
+  };
+
+  const removeImage = (index: number) => {
+    setProofImages((prev) => prev.filter((_, i) => i !== index));
+    toast.success("Image removed");
   };
 
   const openLogDetails = (activity: Activity) => {
@@ -474,10 +520,8 @@ export default function HomeScreen() {
                     if (user?.id) notifyLogout(user.id); // Don't await, just fire and forget
                     try {
                       await signOut();
-                      console.log("[Logout] SignOut successful");
                     } catch (e) {
-                      console.error("[Logout] SignOut failed:", e);
-                      toast.error("Logout failed");
+                      toast.error("Logout failed. Try again later.");
                     }
                   }}
                   className="flex-row items-center px-4 py-3.5 m-2 rounded-xl bg-destructive/10 active:bg-destructive/20 border border-destructive/20"
@@ -491,7 +535,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Main Action Card */}
-        <View className="bg-card p-6 rounded-2xl mb-6 shadow-sm border border-border/50">
+        <View className="bg-card p-5 rounded-2xl mb-4 shadow-sm border border-border/50">
           {isLoading ? (
             <View className="gap-y-4">
               <Skeleton className="h-3 w-24 mb-2" />
@@ -521,7 +565,7 @@ export default function HomeScreen() {
                 )}
               </View>
 
-              <View className="mb-4">
+              <View className="mb-3">
                 <Text className="text-muted-foreground text-xs font-sans" numberOfLines={2}>
                   {currentActivity.description}
                 </Text>
@@ -534,7 +578,7 @@ export default function HomeScreen() {
                 <Text className="text-muted-foreground text-xs font-sans mt-1 font-medium">{currentActivity.location}</Text>
               </View>
 
-              <View className="flex-row items-center mb-8">
+              <View className="flex-row items-center mb-5">
                 <View className={`px-3 py-1 rounded-full border ${isActive ? 'bg-primary/10 border-primary/20' : 'bg-muted border-border/50'}`}>
                   <Text className={`text-[10px] font-bold uppercase font-sans tracking-wider ${isActive ? (isPaused ? 'text-amber-500' : 'text-primary') : 'text-muted-foreground'}`}>
                     {isActive ? (isPaused ? '● On Break' : '● Session Active') : 'Waiting for Start'}
@@ -554,7 +598,7 @@ export default function HomeScreen() {
               </View>
 
               {isActive && (
-                <View className="mb-6">
+                <View className="mb-4">
                   <View className="flex-row items-center justify-between mb-2">
                     <Text className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider font-sans">Proof Captures</Text>
                     <Text className="text-muted-foreground text-[11px] font-semibold font-sans">{proofImages.length} image{proofImages.length === 1 ? '' : 's'}</Text>
@@ -569,27 +613,29 @@ export default function HomeScreen() {
                       {previewProofImages.map((uri, index) => {
                         const isOverflowTile = index === 2 && hiddenProofCount > 0;
 
-                        if (isOverflowTile) {
-                          return (
-                            <Pressable
-                              key={`${uri}-${index}`}
-                              onPress={() => setShowAllProofs(true)}
-                              className="w-16 h-16 rounded-lg mr-2 overflow-hidden border border-border/50"
-                            >
-                              <Image source={{ uri }} className="w-full h-full" />
-                              <View className="absolute inset-0 bg-black/55 items-center justify-center">
-                                <Text className="text-white font-black text-sm font-sans">+{hiddenProofCount}</Text>
-                              </View>
-                            </Pressable>
-                          );
-                        }
-
                         return (
-                          <Image
-                            key={`${uri}-${index}`}
-                            source={{ uri }}
-                            className="w-16 h-16 rounded-lg mr-2 border border-border/50"
-                          />
+                          <View key={`${uri}-${index}`} className="relative mr-2">
+                            <View className="w-16 h-16 rounded-lg overflow-hidden border border-border/50">
+                              <Image source={{ uri }} className="w-full h-full" />
+                              {isOverflowTile && (
+                                <Pressable
+                                  onPress={() => setShowAllProofs(true)}
+                                  className="absolute inset-0 bg-black/55 items-center justify-center"
+                                >
+                                  <Text className="text-white font-black text-sm font-sans">+{hiddenProofCount}</Text>
+                                </Pressable>
+                              )}
+                            </View>
+                            
+                            {!isOverflowTile && (
+                              <Pressable
+                                onPress={() => removeImage(index)}
+                                className="absolute -top-1 -right-1 w-5 h-5 bg-destructive rounded-full items-center justify-center border border-card shadow-sm"
+                              >
+                                <Icon as={X} size={12} className="text-white" />
+                              </Pressable>
+                            )}
+                          </View>
                         );
                       })}
                     </View>
@@ -612,10 +658,11 @@ export default function HomeScreen() {
                   <View className="flex-row gap-3">
                     <Button
                       variant="outline"
-                      className={`w-14 rounded-[18px] py-4 shadow-sm ${isPaused ? 'bg-amber-500/10 border-amber-500/20' : 'bg-card border-border/50'}`}
+                      className={`w-14 rounded-[18px] py-4 shadow-sm ${isPaused ? 'bg-amber-500/10 border-amber-500/20' : (hasTakenBreak ? 'bg-muted border-border/20 opacity-50' : 'bg-card border-border/50')}`}
                       onPress={isPaused ? handleResume : handleBreak}
+                      disabled={!isPaused && hasTakenBreak}
                     >
-                      <Icon as={isPaused ? Play : Coffee} size={20} className={isPaused ? 'text-amber-600' : 'text-foreground'} />
+                      <Icon as={isPaused ? Play : Coffee} size={20} className={isPaused ? 'text-amber-600' : (hasTakenBreak ? 'text-muted-foreground' : 'text-foreground')} />
                     </Button>
 
                     <Button
@@ -642,12 +689,12 @@ export default function HomeScreen() {
               )}
             </>
           ) : (
-            <View className="py-12 items-center justify-center">
-              <View className="w-20 h-20 rounded-full bg-accent/30 items-center justify-center mb-4 border border-border/20">
-                <Icon as={QrCode} size={32} className="text-muted-foreground opacity-40" />
+            <View className="py-8 items-center justify-center">
+              <View className="w-16 h-16 rounded-full bg-accent/30 items-center justify-center mb-3 border border-border/20">
+                <Icon as={QrCode} size={28} className="text-muted-foreground opacity-40" />
               </View>
-              <Text className="text-foreground text-xl font-black font-sans text-center tracking-tight">No Active Session</Text>
-              <Text className="text-muted-foreground text-center font-sans text-[13px] px-12 leading-5 mt-2">
+              <Text className="text-foreground text-lg font-black font-sans text-center tracking-tight">No Active Session</Text>
+              <Text className="text-muted-foreground text-center font-sans text-[12px] px-10 leading-4 mt-1">
                 Scan an activity QR code to start tracking your community service hours.
               </Text>
             </View>

@@ -180,21 +180,19 @@ export default function NotificationsScreen() {
             const res = await fetch(`${API_URL}/users/${user.id}/notifications`);
             if (!res.ok) throw new Error('Fetch failed');
             const data = await res.json();
-            
-            const mapped = data
-                .filter((n: any) => n.type !== 'task_assigned' || n.related_id)
-                .map((n: any) => ({
-                    id: n.id,
-                    title: n.title,
-                    message: n.message,
-                    unread: !n.is_read,
-                    type: n.type,
-                    icon: ICON_MAP[n.type] || Bell,
-                    time: formatTime(n.created_at),
-                    url: n.url,
-                    taskId: n.related_id
-                }));
-            
+
+            const mapped = data.map((n: any) => ({
+                id: n.id,
+                title: n.title,
+                message: n.message,
+                unread: !n.is_read,
+                type: n.type,
+                icon: ICON_MAP[n.type] || Bell,
+                time: formatTime(n.created_at),
+                url: n.url,
+                taskId: n.task_id
+            }));
+
             saveCache(CACHE_KEY, mapped);
             return mapped;
         },
@@ -215,7 +213,7 @@ export default function NotificationsScreen() {
         onMutate: async (id) => {
             await queryClient.cancelQueries({ queryKey: ['notifications', user?.id] });
             const previous = queryClient.getQueryData(['notifications', user?.id]);
-            queryClient.setQueryData(['notifications', user?.id], (old: any) => 
+            queryClient.setQueryData(['notifications', user?.id], (old: any) =>
                 old?.map((n: any) => n.id === id ? { ...n, unread: false } : n)
             );
             return { previous };
@@ -223,9 +221,6 @@ export default function NotificationsScreen() {
         onError: (err, id, context) => {
             queryClient.setQueryData(['notifications', user?.id], context?.previous);
             toast.error('Failed to update notification');
-        },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
         }
     });
 
@@ -237,7 +232,7 @@ export default function NotificationsScreen() {
         onMutate: async (id) => {
             await queryClient.cancelQueries({ queryKey: ['notifications', user?.id] });
             const previous = queryClient.getQueryData(['notifications', user?.id]);
-            queryClient.setQueryData(['notifications', user?.id], (old: any) => 
+            queryClient.setQueryData(['notifications', user?.id], (old: any) =>
                 old?.filter((n: any) => n.id !== id)
             );
             return { previous };
@@ -245,9 +240,6 @@ export default function NotificationsScreen() {
         onError: (err, id, context) => {
             queryClient.setQueryData(['notifications', user?.id], context?.previous);
             toast.error('Failed to delete notification');
-        },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
         }
     });
 
@@ -259,9 +251,9 @@ export default function NotificationsScreen() {
         }
 
         // Deep link to web portal tracking page using Task ID
-        const targetId = item.taskId || item.id;
+        const targetId = item.taskId;
         const trackingUrl = `https://osaserviceportal.vercel.app/track?id=${targetId}`;
-        
+
         try {
             const supported = await Linking.canOpenURL(trackingUrl);
             if (supported) {
@@ -309,11 +301,11 @@ export default function NotificationsScreen() {
     return (
         <SafeAreaView className="flex-1 bg-muted" edges={['top']}>
             <Stack.Screen options={{ headerShown: false }} />
-            
+
             {/* HEADER */}
             <View className="px-5 py-4 flex-row justify-between items-start">
                 <View className="flex-row items-start gap-x-4">
-                    <Pressable 
+                    <Pressable
                         onPress={() => router.back()}
                         className="mt-1 w-8 h-8 rounded-full bg-card items-center justify-center border border-border/50 active:opacity-50"
                     >
@@ -329,7 +321,7 @@ export default function NotificationsScreen() {
                     </View>
                 </View>
 
-                {notifications.length > 0 && (
+                {/* {notifications.length > 0 && (
                     <AnimatedTouchableOpacity
                         layout={Layout.springify().damping(18).stiffness(150)}
                         onPress={handleClearPress}
@@ -354,7 +346,7 @@ export default function NotificationsScreen() {
                             </Animated.View>
                         )}
                     </AnimatedTouchableOpacity>
-                )}
+                )} */}
             </View>
 
             {/* CONTENT */}
