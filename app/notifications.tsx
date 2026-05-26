@@ -193,13 +193,22 @@ export default function NotificationsScreen() {
                 taskId: n.task_id
             }));
 
-            saveCache(CACHE_KEY, mapped);
-            return mapped;
+            let seenWelcomeBack = false;
+            const filteredMapped = mapped.filter((n: any) => {
+                if (n.title === 'Welcome back!') {
+                    if (seenWelcomeBack) return false;
+                    seenWelcomeBack = true;
+                    return true;
+                }
+                return true;
+            });
+
+            saveCache(CACHE_KEY, filteredMapped);
+            return filteredMapped;
         },
         enabled: !!user?.id,
-        refetchInterval: 10000, // Auto-refresh every 10 seconds
+        refetchInterval: 10000,
         initialData: () => {
-            // Optional: return cached data here if available synchronously
             return [];
         }
     });
@@ -320,33 +329,6 @@ export default function NotificationsScreen() {
                         </Text>
                     </View>
                 </View>
-
-                {/* {notifications.length > 0 && (
-                    <AnimatedTouchableOpacity
-                        layout={Layout.springify().damping(18).stiffness(150)}
-                        onPress={handleClearPress}
-                        className="bg-muted items-center justify-center overflow-hidden border border-border/50"
-                        style={{ borderRadius: 9999, minWidth: 32, height: 32 }}
-                    >
-                        {confirmClear ? (
-                            <Animated.Text
-                                entering={FadeIn.duration(200)}
-                                exiting={FadeOut.duration(200)}
-                                className="text-foreground text-[13px] font-semibold px-4 font-sans"
-                            >
-                                Clear
-                            </Animated.Text>
-                        ) : (
-                            <Animated.View
-                                entering={FadeIn.duration(200)}
-                                exiting={FadeOut.duration(200)}
-                                className="p-1.5 px-2"
-                            >
-                                <Icon as={X} className="size-4 text-muted-foreground" />
-                            </Animated.View>
-                        )}
-                    </AnimatedTouchableOpacity>
-                )} */}
             </View>
 
             {/* CONTENT */}

@@ -6,6 +6,7 @@ import '@/global.css';
 import { NAV_THEME } from '@/lib/theme';
 import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { tokenCache } from '@clerk/clerk-expo/token-cache';
+import { resourceCache } from '@clerk/clerk-expo/resource-cache';
 import { ThemeProvider } from '@react-navigation/native';
 import { PortalHost } from '@rn-primitives/portal';
 import { Toaster } from 'sonner-native';
@@ -66,7 +67,11 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <QueryClientProvider client={queryClient}>
-          <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+          <ClerkProvider 
+            publishableKey={publishableKey} 
+            tokenCache={tokenCache}
+            __experimental_resourceCache={resourceCache}
+          >
             <View style={{ flex: 1 }} className={colorScheme === 'dark' ? 'dark' : ''}>
               <RootLayoutNav colorScheme={colorScheme} />
             </View>
